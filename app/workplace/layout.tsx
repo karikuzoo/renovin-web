@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Inbox, 
-  FolderOpen, 
-  Layers, 
-  Users, 
-  Briefcase, 
-  BarChart, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Inbox,
+  FolderOpen,
+  Layers,
+  Users,
+  Briefcase,
+  BarChart,
+  Settings,
   HelpCircle,
   LogOut,
   ChevronDown,
   Search,
   Bell,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 
 export default function RuangKerjaLayout({
@@ -28,13 +28,18 @@ export default function RuangKerjaLayout({
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Dashboard", href: "/ruang-kerja/dashboard", icon: LayoutDashboard },
-    { name: "Pesanan", href: "/ruang-kerja/pesanan", icon: Inbox, badge: "6" },
-    { name: "Proyek", href: "/ruang-kerja/proyek", icon: FolderOpen, badge: "3" },
-    { name: "Katalog Bahan", href: "/ruang-kerja/katalog", icon: Layers },
-    { name: "Klien", href: "/ruang-kerja/klien", icon: Users },
-    { name: "Tim pekerja", href: "/ruang-kerja/tim", icon: Briefcase },
-    { name: "Laporan", href: "/ruang-kerja/laporan", icon: BarChart },
+    { name: "Dashboard", href: "/workplace/dashboard", icon: LayoutDashboard },
+    { name: "Pesanan", href: "/workplace/pesanan", icon: Inbox, badge: "6" },
+    {
+      name: "Proyek",
+      href: "/workplace/proyek",
+      icon: FolderOpen,
+      badge: "3",
+    },
+    { name: "Katalog Bahan", href: "/workplace/katalog", icon: Layers },
+    { name: "Klien", href: "/workplace/klien", icon: Users },
+    { name: "Tim pekerja", href: "/workplace/tim", icon: Briefcase },
+    { name: "Laporan", href: "/workplace/laporan", icon: BarChart },
   ];
 
   return (
@@ -80,11 +85,15 @@ export default function RuangKerjaLayout({
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
+                      <item.icon
+                        className={`h-4 w-4 ${isActive ? "text-white" : "text-zinc-400"}`}
+                      />
                       {item.name}
                     </div>
                     {item.badge && (
-                      <span className={`text-xs font-medium ${isActive ? "text-white" : "text-zinc-500"}`}>
+                      <span
+                        className={`text-xs font-medium ${isActive ? "text-white" : "text-zinc-500"}`}
+                      >
                         {item.badge}
                       </span>
                     )}
@@ -98,14 +107,16 @@ export default function RuangKerjaLayout({
             </p>
             <nav className="space-y-1">
               <Link
-                href="/ruang-kerja/pengaturan"
+                href="/workplace/pengaturan"
                 className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                  pathname.startsWith("/ruang-kerja/pengaturan")
+                  pathname.startsWith("/workplace/pengaturan")
                     ? "bg-[#2C4A3B] text-white font-medium"
                     : "text-zinc-600 hover:bg-zinc-200/50 hover:text-zinc-900"
                 }`}
               >
-                <Settings className={`h-4 w-4 ${pathname.startsWith("/ruang-kerja/pengaturan") ? "text-white" : "text-zinc-400"}`} />
+                <Settings
+                  className={`h-4 w-4 ${pathname.startsWith("/workplace/pengaturan") ? "text-white" : "text-zinc-400"}`}
+                />
                 Pengaturan
               </Link>
             </nav>
@@ -119,11 +130,16 @@ export default function RuangKerjaLayout({
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2C4A3B]/10 mb-3">
               <HelpCircle className="h-4 w-4 text-[#2C4A3B]" />
             </div>
-            <h4 className="text-sm font-semibold text-[#2C4A3B] mb-1">Butuh bantuan?</h4>
+            <h4 className="text-sm font-semibold text-[#2C4A3B] mb-1">
+              Butuh bantuan?
+            </h4>
             <p className="text-xs text-zinc-600 leading-relaxed mb-3">
               Panduan untuk mengelola studio dengan lebih mudah.
             </p>
-            <Link href="#" className="text-xs font-semibold text-[#2C4A3B] flex items-center gap-1 hover:underline">
+            <Link
+              href="#"
+              className="text-xs font-semibold text-[#2C4A3B] flex items-center gap-1 hover:underline"
+            >
               Buka pusat bantuan <ArrowRight className="h-3 w-3 -rotate-45" />
             </Link>
           </div>
@@ -135,7 +151,9 @@ export default function RuangKerjaLayout({
                 AP
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-zinc-800">Atmin Pusat</span>
+                <span className="text-sm font-semibold text-zinc-800">
+                  Atmin Pusat
+                </span>
                 <span className="text-[10px] text-zinc-500">Administrator</span>
               </div>
             </div>
@@ -153,7 +171,9 @@ export default function RuangKerjaLayout({
           <div className="flex items-center text-sm text-zinc-500 font-medium">
             <span>Ruang kerja</span>
             <ChevronRight className="mx-2 h-4 w-4 text-zinc-400" />
-            <span className="text-zinc-900 capitalize">{pathname.split("/").pop()?.replace("-", " ") || "Dashboard"}</span>
+            <span className="text-zinc-900 capitalize">
+              {pathname.split("/").pop()?.replace("-", " ") || "Dashboard"}
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -176,9 +196,7 @@ export default function RuangKerjaLayout({
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto p-8">
-          {children}
-        </div>
+        <div className="flex-1 overflow-auto p-8">{children}</div>
       </main>
     </div>
   );
