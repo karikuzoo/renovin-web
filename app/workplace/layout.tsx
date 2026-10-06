@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Inbox,
-  FolderOpen,
-  Layers,
+  Package,
+  ChartColumnIncreasing,
   Users,
+  MailWarning,
   Briefcase,
   BarChart,
   Settings,
@@ -32,7 +33,7 @@ export default function RuangKerjaLayout({
     {
       name: "Pesanan Baru",
       href: "/workplace/pesanan-baru",
-      icon: Inbox,
+      icon: MailWarning,
       badge: "4",
     },
     {
@@ -41,10 +42,14 @@ export default function RuangKerjaLayout({
       icon: Inbox,
       badge: "6",
     },
-    { name: "Katalog Bahan", href: "/workplace/katalog", icon: Layers },
+    { name: "Katalog Bahan", href: "/workplace/katalog", icon: Package },
     { name: "Klien", href: "/workplace/klien", icon: Users },
     { name: "Tim pekerja", href: "/workplace/tim", icon: Briefcase },
-    { name: "Laporan", href: "/workplace/laporan", icon: BarChart },
+    {
+      name: "Laporan",
+      href: "/workplace/laporan",
+      icon: ChartColumnIncreasing,
+    },
   ];
 
   return (
