@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Inbox,
@@ -27,6 +27,7 @@ export default function RuangKerjaLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const navItems = [
     { name: "Dashboard", href: "/workplace/dashboard", icon: LayoutDashboard },
@@ -169,7 +170,10 @@ export default function RuangKerjaLayout({
                 <span className="text-[10px] text-zinc-500">Administrator</span>
               </div>
             </div>
-            <button className="text-zinc-400 hover:text-zinc-600">
+            <button 
+              onClick={() => router.push("/")}
+              className="text-zinc-400 hover:text-zinc-600"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
