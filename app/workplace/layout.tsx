@@ -35,12 +35,11 @@ export default function RuangKerjaLayout({
       icon: Inbox,
       badge: "4",
     },
-    { name: "Daftar Pesanan", href: "/workplace/pesanan", icon: Inbox, badge: "6" },
     {
-      name: "Proyek",
-      href: "/workplace/proyek",
-      icon: FolderOpen,
-      badge: "3",
+      name: "Daftar Pesanan",
+      href: "/workplace/pesanan",
+      icon: Inbox,
+      badge: "6",
     },
     { name: "Katalog Bahan", href: "/workplace/katalog", icon: Layers },
     { name: "Klien", href: "/workplace/klien", icon: Users },
@@ -79,7 +78,9 @@ export default function RuangKerjaLayout({
             </p>
             <nav className="space-y-1">
               {navItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
                 return (
                   <Link
                     key={item.name}
