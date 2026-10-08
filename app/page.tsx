@@ -5,21 +5,38 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Mail, EyeOff, ShieldCheck, ArrowRight } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
   const router = useRouter();
+  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === "admin@renovin.id" && password === "admin123") {
-      router.push("/workplace/dashboard");
-    } else {
-      setError(
-        "Email atau kata sandi salah. Gunakan admin@renovin.id / admin123",
-      );
+    setLoading(true);
+    setError("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message); // Menampilkan pesan error asli dari Supabase
+      } else if (data.session) {
+        window.location.href = "/workplace/dashboard";
+      } else {
+        setError("Login gagal. Sesi tidak ditemukan.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Terjadi kesalahan sistem saat mencoba login.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,9 +165,10 @@ export default function Home() {
 
               <button
                 type="submit"
-                className="flex w-full items-center justify-between rounded-md bg-[#2C4A3B] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#233A2E]"
+                disabled={loading}
+                className="flex w-full items-center justify-between rounded-md bg-[#2C4A3B] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#233A2E] disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Masuk ke ruang kerja
+                {loading ? "Memproses..." : "Masuk ke ruang kerja"}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
