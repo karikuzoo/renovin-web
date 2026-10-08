@@ -1,40 +1,42 @@
-export async function uploadFoto(file: File, folderPath: string = "/projects") {
-  // 1. Minta token autentikasi ke Server Backend baru
-  const backendUrl = process.env.NEXT_PUBLIC_API_BACKEND_URL;
-  const authRes = await fetch(`${backendUrl}/api/imagekit-auth`);
+// Upload file ke ImageKit lewat edge function Supabase `imagekit-auth`.
+// - Wajib login: token upload hanya diberikan ke user yang sudah login.
+// - Folder otomatis dari backend: auth.folders.catalog / auth.folders.reports
+// - Simpan KEDUANYA ke database: fileId (kolom *_file_id) dan url (kolom *_url).
+//
+// Contoh:
+//   const { fileId, url } = await uploadToImageKit(file, file.name, 'catalog')
+//   await supabase.from('products').update({ image_file_id: fileId, image_url: url }).eq('id', productId)
 
-  if (!authRes.ok) {
-    throw new Error("Gagal mengambil token autentikasi dari backend");
-  }
+import { createClient } from '@/lib/supabase/client'
 
-  const authData = await authRes.json();
+type UploadKind = 'catalog' | 'reports'
 
-  // 2. Kirim/Upload file langsung dari browser ke ImageKit API
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append(
-    "fileName",
-    `${Date.now()}-${file.name.replace(/\s+/g, "-")}`,
-  );
-  formData.append("folder", folderPath);
-  formData.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY!);
-  formData.append("signature", authData.signature);
-  formData.append("expire", authData.expire);
-  formData.append("token", authData.token);
+const RULES: Record<UploadKind, { types: string[]; maxMb: number }> = {
+  catalog: { types: ['image/jpeg', 'image/png', 'image/webp'], maxMb: 5 },
+  reports: { types: ['application/pdf'], maxMb: 10 },
+}
 
-  const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-    method: "POST",
-    body: formData,
-  });
+export async function uploadToImageKit(file: File | Blob, fileName: string, kind: UploadKind) {
+  const rule = RULES[kind]
+  if (!rule.types.includes(file.type)) throw new Error('Tipe file tidak didukung')
+  if (file.size > rule.maxMb * 1024 * 1024) throw new Error('Ukuran file maksimal ' + rule.maxMb + ' MB')
 
-  const uploadResult = await res.json();
+  const supabase = createClient()
+  const { data: auth, error } = await supabase.functions.invoke('imagekit-auth')
+  if (error) throw new Error('Gagal meminta izin upload. Coba login ulang.')
 
-  if (!res.ok) {
-    throw new Error(
-      uploadResult.message || "Gagal mengunggah foto ke ImageKit",
-    );
-  }
+  const form = new FormData()
+  form.append('file', file)
+  form.append('fileName', fileName.replace(/\s+/g, '-'))
+  form.append('publicKey', auth.publicKey)
+  form.append('signature', auth.signature)
+  form.append('expire', String(auth.expire))
+  form.append('token', auth.token)
+  form.append('folder', auth.folders[kind])
 
-  // Mengembalikan URL foto
-  return uploadResult.url;
+  const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method: 'POST', body: form })
+  const uploaded = await res.json()
+  if (!res.ok || !uploaded.fileId) throw new Error(uploaded.message ?? 'Upload ke ImageKit gagal')
+
+  return { fileId: uploaded.fileId as string, url: uploaded.url as string }
 }
