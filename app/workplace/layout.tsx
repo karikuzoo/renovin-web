@@ -10,7 +10,6 @@ import {
   Users,
   MailWarning,
   Briefcase,
-  BarChart,
   Settings,
   HelpCircle,
   LogOut,
@@ -170,7 +169,7 @@ export default function RuangKerjaLayout({
                 <span className="text-[10px] text-zinc-500">Administrator</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => router.push("/")}
               className="text-zinc-400 hover:text-zinc-600"
             >
