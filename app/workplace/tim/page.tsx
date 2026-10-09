@@ -105,7 +105,7 @@ export default function TimPekerja() {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">Tim pekerja</h1>
           <p className="text-sm text-zinc-500">
@@ -126,7 +126,7 @@ export default function TimPekerja() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
           <p className="text-sm font-medium text-zinc-500">Anggota tim</p>
           <p className="text-4xl font-bold text-zinc-900">8</p>
@@ -168,8 +168,8 @@ export default function TimPekerja() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex bg-zinc-100 rounded-md p-0.5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div className="flex bg-zinc-100 rounded-md p-0.5 w-fit">
             <button className="px-3 py-1.5 text-xs font-semibold rounded bg-white shadow-sm text-zinc-900 flex items-center gap-1.5">
               Semua <span className="text-zinc-400 font-normal">8</span>
             </button>
@@ -187,7 +187,7 @@ export default function TimPekerja() {
               <input
                 type="text"
                 placeholder="Cari nama atau keahlian"
-                className="h-9 w-64 rounded-md border border-zinc-200 pl-9 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B] placeholder:text-zinc-400"
+                className="h-9 w-full sm:w-64 rounded-md border border-zinc-200 pl-9 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B] placeholder:text-zinc-400"
               />
             </div>
             <button className="flex h-9 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
@@ -287,7 +287,7 @@ export default function TimPekerja() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-2 p-4 border-t border-zinc-100">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-2 p-4 border-t border-zinc-100">
           <p className="text-[11px] text-zinc-500">
             Menampilkan 1–8 dari 8 anggota · 2 anggota tersedia untuk proyek baru
           </p>
@@ -310,7 +310,7 @@ export default function TimPekerja() {
         <h2 className="text-lg font-bold text-zinc-900 mb-4">
           Penugasan per proyek
         </h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Project 1 */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col">
             <h3 className="font-bold text-zinc-900 text-sm mb-1">

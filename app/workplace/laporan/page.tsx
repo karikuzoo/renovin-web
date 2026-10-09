@@ -75,7 +75,7 @@ export default function Laporan() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">Laporan</h1>
           <p className="text-sm text-zinc-500">
@@ -96,7 +96,7 @@ export default function Laporan() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1 */}
         <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white relative overflow-hidden">
           <div className="flex justify-between items-start z-10 relative">
@@ -183,8 +183,10 @@ export default function Laporan() {
             </div>
 
             {/* Simulated Chart */}
-            <div className="relative h-48 w-full mt-4 flex">
-              {/* Y-axis labels and lines */}
+            <div className="overflow-x-auto pb-2">
+              <div className="min-w-[500px]">
+                <div className="relative h-48 w-full mt-4 flex">
+                  {/* Y-axis labels and lines */}
               <div className="absolute inset-0 flex flex-col justify-between">
                 {[150, 100, 50, 0].map((val) => (
                   <div
@@ -236,6 +238,8 @@ export default function Laporan() {
                   {d.date}
                 </span>
               ))}
+            </div>
+              </div>
             </div>
           </div>
 
@@ -314,7 +318,7 @@ export default function Laporan() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between p-4 border-t border-zinc-100">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border-t border-zinc-100">
               <p className="text-[11px] text-zinc-500 font-medium">
                 Total: Rp 485 jt · Diterima Rp 277,5 jt · Sisa Rp 207,5 jt
               </p>

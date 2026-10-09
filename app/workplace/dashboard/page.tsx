@@ -7,7 +7,7 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Welcome Section */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-medium text-zinc-900">
             Selamat pagi, <span className="italic">Atmin.</span>
@@ -30,7 +30,7 @@ export default function Dashboard() {
           </span>
         </div>
         
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1 */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
             <p className="text-sm font-medium text-zinc-500">Total pesanan</p>
@@ -72,7 +72,7 @@ export default function Dashboard() {
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Project 1 */}
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
             <div className="relative h-32 bg-zinc-200">
@@ -250,7 +250,7 @@ export default function Dashboard() {
           </button>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div className="flex bg-zinc-100 rounded-md p-0.5">
             <button className="px-3 py-1 text-xs font-semibold rounded bg-white shadow-sm text-zinc-900 flex items-center gap-1.5">
               Semua <span className="text-zinc-400 font-normal">6</span>
@@ -269,7 +269,7 @@ export default function Dashboard() {
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <input type="text" placeholder="Cari nama atau nomor pesanan" className="h-8 w-64 rounded-md border border-zinc-200 pl-8 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B]" />
+              <input type="text" placeholder="Cari nama atau nomor pesanan" className="h-8 w-full sm:w-64 rounded-md border border-zinc-200 pl-8 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B]" />
             </div>
             <button className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
               <Filter className="h-3 w-3" />

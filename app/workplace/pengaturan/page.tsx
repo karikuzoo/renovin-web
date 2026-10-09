@@ -14,7 +14,7 @@ export default function Pengaturan() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">Pengaturan</h1>
           <p className="text-sm text-zinc-500">
@@ -28,7 +28,7 @@ export default function Pengaturan() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between border-b border-zinc-200">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 overflow-x-auto">
         <div className="flex gap-6">
           <button className="border-b-2 border-[#2C4A3B] pb-3 text-sm font-bold text-zinc-900">
             Profil studio
@@ -84,7 +84,7 @@ export default function Pengaturan() {
             </div>
 
             {/* Form Fields */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-700">
                   Nama studio
@@ -141,7 +141,7 @@ export default function Pengaturan() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-700">
                   Zona waktu
@@ -359,7 +359,7 @@ export default function Pengaturan() {
         </div>
 
         {/* Locale Settings */}
-        <div className="grid grid-cols-2 gap-6 pt-6 border-t border-zinc-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-zinc-100">
           <div className="space-y-2">
             <label className="text-xs font-bold text-zinc-700">
               Bahasa antarmuka
@@ -386,7 +386,7 @@ export default function Pengaturan() {
       </div>
 
       {/* Save Action Bottom Banner */}
-      <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-zinc-200 bg-white p-5">
         <div>
           <p className="text-sm font-bold text-zinc-900 mb-0.5">
             Pengaturan berlaku untuk ruang kerja studio ini.

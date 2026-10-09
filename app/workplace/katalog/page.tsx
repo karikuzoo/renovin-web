@@ -102,7 +102,7 @@ export default function KatalogBahan() {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">
             Katalog Bahan Bangunan
@@ -119,7 +119,7 @@ export default function KatalogBahan() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
           <p className="text-sm font-medium text-zinc-500">Total bahan</p>
           <p className="text-4xl font-bold text-zinc-900">6</p>
@@ -185,7 +185,7 @@ export default function KatalogBahan() {
         </div>
 
         {/* Search & Filters */}
-        <div className="flex items-center gap-3 mb-6 mt-4">
+        <div className="flex flex-wrap items-center gap-3 mb-6 mt-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <input
@@ -209,7 +209,7 @@ export default function KatalogBahan() {
         </div>
 
         {/* Material Cards Grid */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {materials.map((item) => (
             <div
               key={item.id}
@@ -312,7 +312,7 @@ export default function KatalogBahan() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-100">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-6 pt-4 border-t border-zinc-100">
           <p className="text-xs text-zinc-500">
             Menampilkan 1–6 dari 6 bahan · 5 terbit, 1 draft
           </p>
