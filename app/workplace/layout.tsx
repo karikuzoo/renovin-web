@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
 import {
   LayoutDashboard,
   Inbox,
@@ -27,6 +29,12 @@ export default function RuangKerjaLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/");
+    router.refresh();
+  };
 
   const navItems = [
     { name: "Dashboard", href: "/workplace/dashboard", icon: LayoutDashboard },
@@ -170,7 +178,7 @@ export default function RuangKerjaLayout({
               </div>
             </div>
             <button
-              onClick={() => router.push("/")}
+              onClick={handleLogout}
               className="text-zinc-400 hover:text-zinc-600"
             >
               <LogOut className="h-4 w-4" />
