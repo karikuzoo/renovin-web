@@ -27,12 +27,40 @@ export default function Home() {
       });
 
       if (error) {
-        setError(error.message); // Menampilkan pesan error asli dari Supabase
-      } else if (data.session) {
-        window.location.href = "/workplace/dashboard";
-      } else {
-        setError("Login gagal. Sesi tidak ditemukan.");
+        setError(error.message);
+        return;
       }
+
+      if (!data.session) {
+        setError("Login gagal. Sesi tidak ditemukan.");
+        return;
+      }
+
+      // Cek role user di tabel profiles
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.session.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        setError("Gagal memuat data profil. Silakan coba lagi.");
+        return;
+      }
+
+      const allowedRoles = ["admin", "super_admin"];
+
+      if (!allowedRoles.includes(profile.role)) {
+        await supabase.auth.signOut();
+        setError(
+          "Akses ditolak. Hanya akun dengan role Admin atau Super Admin yang dapat mengakses halaman ini."
+        );
+        return;
+      }
+
+      // Role valid, redirect ke dashboard
+      window.location.href = "/workplace/dashboard";
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan sistem saat mencoba login.");
     } finally {
