@@ -54,15 +54,16 @@ export default function Home() {
       if (!allowedRoles.includes(profile.role)) {
         await supabase.auth.signOut();
         setError(
-          "Akses ditolak. Hanya akun dengan role Admin atau Super Admin yang dapat mengakses halaman ini."
+          "Akses ditolak. Hanya akun dengan role Admin atau Super Admin yang dapat mengakses halaman ini.",
         );
         return;
       }
 
       // Role valid, redirect ke dashboard
-      window.location.href = "/workplace/dashboard";
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan sistem saat mencoba login.");
+      router.replace("/workplace/dashboard");
+      router.refresh();
+    } catch {
+      setError("Terjadi kesalahan sistem saat mencoba login.");
     } finally {
       setLoading(false);
     }
