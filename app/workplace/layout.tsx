@@ -38,8 +38,9 @@ export default function RuangKerjaLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Sidebar mobile terbuka hanya di halaman tempat ia dibuka -> otomatis tertutup saat pindah halaman
+  const [sidebarOpenedAt, setSidebarOpenedAt] = useState<string | null>(null);
+  const sidebarOpen = sidebarOpenedAt === pathname;
   const [user, setUser] = useState<UserProfile>({
     fullName: "...",
     role: "...",
@@ -49,23 +50,24 @@ export default function RuangKerjaLayout({
   // Fetch user profile from Supabase
   useEffect(() => {
     const fetchUser = async () => {
+      const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (session?.user) {
-        // Ambil display name dari auth metadata
+        // Ambil nama & role dari tabel profiles
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", session.user.id)
+          .single();
+
         const fullName =
+          profile?.full_name ||
           session.user.user_metadata?.full_name ||
           session.user.email?.split("@")[0] ||
           "User";
-
-        // Ambil role dari tabel profiles
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
 
         const role = profile?.role || "user";
         const roleLabel =
@@ -90,14 +92,12 @@ export default function RuangKerjaLayout({
   }, []);
 
   const handleLogout = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
-    window.location.href = "/";
+    router.replace("/");
+    router.refresh();
   };
 
-  // Close sidebar when navigating on mobile
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
 
   const navItems = [
     { name: "Dashboard", href: "/workplace/dashboard", icon: LayoutDashboard },
@@ -129,7 +129,7 @@ export default function RuangKerjaLayout({
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setSidebarOpenedAt(null)}
         />
       )}
 
@@ -149,7 +149,7 @@ export default function RuangKerjaLayout({
               </p>
             </div>
             <button
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => setSidebarOpenedAt(null)}
               className="lg:hidden text-zinc-400 hover:text-zinc-600 mt-1"
             >
               <X className="h-5 w-5" />
@@ -277,7 +277,7 @@ export default function RuangKerjaLayout({
           <div className="flex items-center gap-3">
             {/* Hamburger button - mobile only */}
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpenedAt(pathname)}
               className="lg:hidden text-zinc-600 hover:text-zinc-900"
             >
               <Menu className="h-5 w-5" />
