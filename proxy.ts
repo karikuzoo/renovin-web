@@ -37,9 +37,10 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
   const isWorkplace = pathname.startsWith('/workplace')
   const isLoginPage = pathname === '/'
+  const isResettingPassword = searchParams.get('reset_form') === 'true'
 
   if (!user) {
     return isWorkplace ? redirectTo(request, '/', response) : response
@@ -49,7 +50,8 @@ export async function proxy(request: NextRequest) {
   const isStaff = !!profile && STAFF_ROLES.includes(profile.role)
 
   if (isWorkplace && !isStaff) return redirectTo(request, '/', response)
-  if (isLoginPage && isStaff) return redirectTo(request, '/workplace/dashboard', response)
+  // Jangan alihkan ke dashboard jika pengguna sedang ingin mengatur ulang kata sandinya
+  if (isLoginPage && isStaff && !isResettingPassword) return redirectTo(request, '/workplace/dashboard', response)
 
   return response
 }
