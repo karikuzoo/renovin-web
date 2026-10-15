@@ -3,23 +3,44 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import { Mail, EyeOff, ShieldCheck, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+type Panel = "login" | "forgot" | "reset";
+export default function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Parameter URL dibaca saat render (bukan di useEffect), jadi panel awal langsung benar
+  // dan tidak perlu setState di dalam effect.
+  //   ?forgot=true                 -> panel lupa kata sandi
+  //   ?error=link-tidak-valid      -> panel lupa kata sandi + pesan error (dari /auth/confirm)
+  //   ?reset_form=true             -> panel kata sandi baru (dari /auth/confirm)
+  //   ?reset=berhasil              -> pesan sukses di panel login
+  const params = use(searchParams);
+  const linkInvalid = params.error === "link-tidak-valid";
+  const initialPanel: Panel =
+    params.reset_form === "true"
+      ? "reset"
+      : params.forgot === "true" || linkInvalid
+        ? "forgot"
+        : "login";
 
-export default function Home() {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(params.reset === "berhasil");
   const [loading, setLoading] = useState(false);
 
-  const [activePanel, setActivePanel] = useState<"login" | "forgot" | "reset">("login");
+  const [activePanel, setActivePanel] = useState<Panel>(initialPanel);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotMessage, setForgotMessage] = useState("");
-  const [forgotError, setForgotError] = useState("");
+  const [forgotError, setForgotError] = useState(
+    linkInvalid ? "Link tidak valid atau sudah kedaluwarsa." : "",
+  );
   const [forgotLoading, setForgotLoading] = useState(false);
 
   const [resetPassword, setResetPassword] = useState("");
@@ -28,48 +49,52 @@ export default function Home() {
   const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setActivePanel("reset");
-      }
-    });
+    if (initialPanel !== "reset" && window.location.search) {
+      window.history.replaceState(null, "", "/");
+    }
+  }, [initialPanel]);
 
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      
-      if (searchParams.has("reset") && searchParams.get("reset") === "berhasil") {
-        setResetSuccess(true);
-      }
-      
-      if (searchParams.has("forgot") && searchParams.get("forgot") === "true") {
-        setActivePanel("forgot");
-      }
-      
-      if (searchParams.has("reset_form") && searchParams.get("reset_form") === "true") {
-        setActivePanel("reset");
-      }
+  if (typeof window !== "undefined") {
+    const searchParams = new URLSearchParams(window.location.search);
 
-      if (searchParams.has("error") && searchParams.get("error") === "link-tidak-valid") {
-        setForgotError("Link tidak valid atau sudah kedaluwarsa.");
-        setActivePanel("forgot");
-      }
-
-      // Supabase default implicit flow (tanpa PKCE) melempar hash
-      const hash = window.location.hash;
-      if (hash && hash.includes("type=recovery")) {
-        setActivePanel("reset");
-        // Bersihkan hash setelah ditangkap
-        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-      } else if (searchParams.toString()) {
-        // Hapus query params
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+    if (searchParams.has("reset") && searchParams.get("reset") === "berhasil") {
+      setResetSuccess(true);
     }
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase.auth]);
+    if (searchParams.has("forgot") && searchParams.get("forgot") === "true") {
+      setActivePanel("forgot");
+    }
+
+    if (
+      searchParams.has("reset_form") &&
+      searchParams.get("reset_form") === "true"
+    ) {
+      setActivePanel("reset");
+    }
+
+    if (
+      searchParams.has("error") &&
+      searchParams.get("error") === "link-tidak-valid"
+    ) {
+      setForgotError("Link tidak valid atau sudah kedaluwarsa.");
+      setActivePanel("forgot");
+    }
+
+    // Supabase default implicit flow (tanpa PKCE) melempar hash
+    const hash = window.location.hash;
+    if (hash && hash.includes("type=recovery")) {
+      setActivePanel("reset");
+      // Bersihkan hash setelah ditangkap
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname + window.location.search,
+      );
+    } else if (searchParams.toString()) {
+      // Hapus query params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,9 +156,12 @@ export default function Home() {
     setForgotMessage("");
     setForgotError("");
 
-    const { data, error } = await supabase.functions.invoke("request-password-reset", {
-      body: { email: forgotEmail },
-    });
+    const { data, error } = await supabase.functions.invoke(
+      "request-password-reset",
+      {
+        body: { email: forgotEmail },
+      },
+    );
 
     if (error) {
       setForgotError("Permintaan gagal. Periksa format email lalu coba lagi.");
@@ -143,14 +171,24 @@ export default function Home() {
     setForgotLoading(false);
   };
 
+  const handleCancelReset = async () => {
+    await supabase.auth.signOut();
+    window.history.replaceState(null, "", "/");
+    setActivePanel("login");
+  };
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError("");
-    if (resetPassword.length < 8) return setResetError("Kata sandi minimal 8 karakter.");
-    if (resetPassword !== resetConfirm) return setResetError("Konfirmasi kata sandi tidak sama.");
+    if (resetPassword.length < 8)
+      return setResetError("Kata sandi minimal 8 karakter.");
+    if (resetPassword !== resetConfirm)
+      return setResetError("Konfirmasi kata sandi tidak sama.");
 
     setResetLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: resetPassword });
+    const { error } = await supabase.auth.updateUser({
+      password: resetPassword,
+    });
     if (error) {
       setResetError("Gagal menyimpan kata sandi: " + error.message);
       setResetLoading(false);
@@ -220,10 +258,13 @@ export default function Home() {
         <div className="flex flex-1 items-center justify-center p-8 overflow-hidden">
           <div
             className="flex w-full transition-transform duration-500 ease-in-out"
-            style={{ 
-              transform: activePanel === "login" ? "translateX(0)" : 
-                         activePanel === "forgot" ? "translateX(-100%)" : 
-                         "translateX(-200%)" 
+            style={{
+              transform:
+                activePanel === "login"
+                  ? "translateX(0)"
+                  : activePanel === "forgot"
+                    ? "translateX(-100%)"
+                    : "translateX(-200%)",
             }}
           >
             {/* Form Login */}
@@ -233,8 +274,8 @@ export default function Home() {
                   Selamat datang .
                 </h2>
                 <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-                  Masuk untuk mengelola pesanan, memantau proyek, dan menjaga setiap
-                  detail tetap terhubung.
+                  Masuk untuk mengelola pesanan, memantau proyek, dan menjaga
+                  setiap detail tetap terhubung.
                 </p>
 
                 <form onSubmit={handleLogin} className="space-y-5">
@@ -329,7 +370,8 @@ export default function Home() {
                   Lupa kata sandi
                 </h2>
                 <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-                  Masukkan email admin Anda, dan kami akan mengirimkan tautan untuk mengatur ulang kata sandi.
+                  Masukkan email admin Anda, dan kami akan mengirimkan tautan
+                  untuk mengatur ulang kata sandi.
                 </p>
 
                 <form onSubmit={handleForgotPassword} className="space-y-5">
