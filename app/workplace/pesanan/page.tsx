@@ -1,36 +1,255 @@
 "use client";
 
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Download,
   Plus,
   Search,
-  Filter,
   ArrowUpRight,
   ArrowDown,
   Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  Inbox,
+  AlertCircle,
+  X,
 } from "lucide-react";
+import {
+  fetchOrders,
+  acceptOrder,
+  formatRupiah,
+  formatRupiahCompact,
+  formatTanggal,
+  getStatusLabel,
+  getStatusGroupStyle,
+  type FetchOrdersResult,
+} from "@/lib/orders";
+import type { AdminOrder, OrderStatusGroup } from "@/types/admin-orders";
+import { CreateOrderModal } from "@/components/create-order-modal";
+
+const PAGE_SIZE = 10;
 
 export default function Pesanan() {
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<Record<OrderStatusGroup | "all", number>>({
+    all: 0,
+    new: 0,
+    in_progress: 0,
+    done: 0,
+    rejected: 0,
+  });
+  const [totalValue, setTotalValue] = useState(0);
+
+  // Filters & Pagination
+  const [activeTab, setActiveTab] = useState<OrderStatusGroup | "all">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Action states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Trigger reload from external actions
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const reloadOrders = useCallback(() => {
+    setIsLoading(true);
+    setReloadTrigger((v) => v + 1);
+  }, []);
+
+  // Load orders from backend
+  useEffect(() => {
+    let ignore = false;
+
+    async function execute() {
+      try {
+        const res: FetchOrdersResult = await fetchOrders({
+          statusGroup: activeTab === "all" ? null : activeTab,
+          search: searchQuery,
+          page,
+          pageSize: PAGE_SIZE,
+        });
+
+        if (!ignore) {
+          setOrders(res.orders);
+          setTotal(res.total);
+          setCounts(res.counts);
+          setTotalValue(res.totalValue);
+          setError(null);
+          setIsLoading(false);
+        }
+      } catch (err: unknown) {
+        if (!ignore) {
+          console.error("Gagal memuat pesanan:", err);
+          const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data pesanan.";
+          setError(msg);
+          setIsLoading(false);
+        }
+      }
+    }
+
+    execute();
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeTab, searchQuery, page, reloadTrigger]);
+
+  // Auto clear toast after 4 seconds
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  // Handle Accept Order
+  const handleAcceptOrder = async (projectId: string, projectTitle: string) => {
+    setAcceptingId(projectId);
+    try {
+      await acceptOrder(projectId);
+      setToastMessage({
+        type: "success",
+        text: `Pesanan "${projectTitle}" berhasil diterima dan dipindahkan ke Diproses Admin.`,
+      });
+      reloadOrders();
+    } catch (err: unknown) {
+      console.error("Gagal menerima pesanan:", err);
+      const msg = err instanceof Error ? err.message : "Gagal menerima pesanan.";
+      setToastMessage({
+        type: "error",
+        text: `Gagal menerima pesanan: ${msg}`,
+      });
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
+  // Export data to CSV
+  const handleExportCSV = () => {
+    if (orders.length === 0) {
+      setToastMessage({ type: "error", text: "Tidak ada data pesanan untuk diekspor." });
+      return;
+    }
+
+    const headers = [
+      "No. Pesanan",
+      "Judul Proyek",
+      "Jenis Ruangan",
+      "Klien",
+      "Email Klien",
+      "Telepon Klien",
+      "Tanggal Masuk",
+      "Nilai Pesanan (IDR)",
+      "Status",
+      "Status Kelompok",
+      "Total Luas (m2)",
+    ];
+
+    const csvRows = [headers.join(",")];
+
+    orders.forEach((o) => {
+      const row = [
+        `"${o.code || ""}"`,
+        `"${(o.title || "").replace(/"/g, '""')}"`,
+        `"${(o.room_type || "").replace(/"/g, '""')}"`,
+        `"${(o.customer_name || "").replace(/"/g, '""')}"`,
+        `"${o.customer_email || ""}"`,
+        `"${o.customer_phone || ""}"`,
+        `"${o.submitted_at || ""}"`,
+        o.order_value ?? 0,
+        `"${o.status || ""}"`,
+        `"${o.status_group || ""}"`,
+        o.total_area ?? 0,
+      ];
+      csvRows.push(row.join(","));
+    });
+
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `pesanan-renovin-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setToastMessage({ type: "success", text: "Data pesanan berhasil diekspor ke CSV." });
+  };
+
+  // Compute pagination details
+  const startItem = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const endItem = Math.min((page + 1) * PAGE_SIZE, total);
+  const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+
+  // New orders for "Perlu konfirmasi" bottom card
+  const newOrdersList = useMemo(() => {
+    return orders.filter((o) => o.status === "sent_to_admin" || o.status_group === "new").slice(0, 3);
+  }, [orders]);
+
+  // Current date formatted in Indonesian
+  const currentDateFormatted = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(new Date());
+    } catch {
+      return "Hari ini";
+    }
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border text-sm transition-all animate-in fade-in slide-in-from-bottom-3 ${
+            toastMessage.type === "success"
+              ? "bg-[#2C4A3B] text-white border-[#233A2E]"
+              : "bg-red-600 text-white border-red-700"
+          }`}
+        >
+          {toastMessage.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-200" />
+          )}
+          <span className="font-medium">{toastMessage.text}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="text-white/70 hover:text-white p-0.5 ml-2"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">Pesanan</h1>
           <p className="text-sm text-zinc-500">
-            Kelola setiap permintaan, nilai pesanan, dan pembayaran dalam satu
-            tempat.
+            Kelola setiap permintaan, nilai pesanan, dan pembayaran dalam satu tempat.
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 shadow-2xs transition"
+          >
             <Download className="h-4 w-4" />
             Ekspor data
           </button>
-          <button className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E]">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E] shadow-sm transition"
+          >
             <Plus className="h-4 w-4" />
             Pesanan baru
           </button>
@@ -39,22 +258,38 @@ export default function Pesanan() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total pesanan */}
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
           <p className="text-sm font-medium text-zinc-500">Total pesanan</p>
-          <p className="text-4xl font-bold text-zinc-900">6</p>
+          <p className="text-4xl font-bold text-zinc-900">
+            {isLoading ? <span className="inline-block h-8 w-12 bg-zinc-100 rounded animate-pulse"></span> : counts.all}
+          </p>
           <p className="text-xs text-zinc-400">
-            2 baru · 3 dikerjakan · 1 selesai
+            {counts.new} baru · {counts.in_progress} dikerjakan · {counts.done} selesai
           </p>
         </div>
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
+
+        {/* Card 2: Nilai pesanan */}
+        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white shadow-sm">
           <p className="text-sm font-medium text-white/80">Nilai pesanan</p>
-          <p className="text-4xl font-bold">Rp 485 jt</p>
-          <p className="text-xs text-white/70">Total nilai dari 6 pesanan</p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <p className="text-sm font-medium text-zinc-500">
-            Pembayaran diterima
+          <p className="text-4xl font-bold tracking-tight">
+            {isLoading ? (
+              <span className="inline-block h-8 w-24 bg-white/20 rounded animate-pulse"></span>
+            ) : (
+              formatRupiahCompact(totalValue)
+            )}
           </p>
+          <p className="text-xs text-white/70">
+            Total nilai dari {counts.all} pesanan
+          </p>
+        </div>
+
+        {/* Card 3: Pembayaran diterima (Data simulasi sesuai kontrak backend) */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-zinc-500">Pembayaran diterima</p>
+            <span className="text-[10px] text-zinc-400 font-medium">Estimasi</span>
+          </div>
           <p className="text-4xl font-bold tracking-tight text-zinc-900">
             Rp 277,5 jt
           </p>
@@ -62,387 +297,444 @@ export default function Pesanan() {
             2 lunas · 2 uang muka 50%
           </p>
         </div>
+
+        {/* Card 4: Sisa pembayaran */}
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <p className="text-sm font-medium text-zinc-500">Sisa pembayaran</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-zinc-500">Sisa pembayaran</p>
+            <span className="text-[10px] text-zinc-400 font-medium">Estimasi</span>
+          </div>
           <p className="text-4xl font-bold tracking-tight text-zinc-900">
             Rp 207,5 jt
           </p>
           <p className="text-xs text-zinc-400">
-            Termasuk Rp 75 jt pesanan baru
+            Termasuk {counts.new} pesanan baru
           </p>
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-6">
+      {/* Orders Table Container */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs">
+        {/* Table Title Bar */}
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-lg font-bold text-zinc-900">Semua pesanan</h2>
             <p className="text-sm text-zinc-500">
-              Dari permintaan awal hingga serah terima, tanpa detail yang
-              terlewat.
+              Dari permintaan awal hingga serah terima, tanpa detail yang terlewat.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600">
-            <Calendar className="h-4 w-4" />
-            3 Okt 2026
+          <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 bg-zinc-50/50">
+            <Calendar className="h-4 w-4 text-zinc-400" />
+            {currentDateFormatted}
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div className="flex bg-zinc-100 rounded-md p-0.5">
-            <button className="px-3 py-1 text-xs font-semibold rounded bg-white shadow-sm text-zinc-900 flex items-center gap-1.5">
-              Semua <span className="text-zinc-400 font-normal">6</span>
-            </button>
-            <button className="px-3 py-1 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-              Baru <span className="text-zinc-400 font-normal">2</span>
-            </button>
-            <button className="px-3 py-1 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-              Dikerjakan <span className="text-zinc-400 font-normal">3</span>
-            </button>
-            <button className="px-3 py-1 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-              Selesai <span className="text-zinc-400 font-normal">1</span>
+        {/* Error Banner if any */}
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 flex items-start justify-between">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Gagal memuat data dari database</p>
+                <p className="text-xs mt-0.5 text-red-600">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={reloadOrders}
+              className="text-xs font-bold text-red-800 underline hover:no-underline"
+            >
+              Coba lagi
             </button>
           </div>
+        )}
 
+        {/* Tab Filters & Search Bar */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+          {/* Tabs */}
+          <div className="flex bg-zinc-100 rounded-md p-0.5 overflow-x-auto">
+            <button
+              onClick={() => {
+                setActiveTab("all");
+                setPage(0);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded flex items-center gap-1.5 transition ${
+                activeTab === "all"
+                  ? "bg-white shadow-xs text-zinc-900"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Semua <span className="text-zinc-400 font-normal">{counts.all}</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("new");
+                setPage(0);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded flex items-center gap-1.5 transition ${
+                activeTab === "new"
+                  ? "bg-white shadow-xs text-zinc-900"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Baru <span className="text-zinc-400 font-normal">{counts.new}</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("in_progress");
+                setPage(0);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded flex items-center gap-1.5 transition ${
+                activeTab === "in_progress"
+                  ? "bg-white shadow-xs text-zinc-900"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Dikerjakan <span className="text-zinc-400 font-normal">{counts.in_progress}</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("done");
+                setPage(0);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded flex items-center gap-1.5 transition ${
+                activeTab === "done"
+                  ? "bg-white shadow-xs text-zinc-900"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Selesai <span className="text-zinc-400 font-normal">{counts.done}</span>
+            </button>
+            {counts.rejected > 0 && (
+              <button
+                onClick={() => {
+                  setActiveTab("rejected");
+                  setPage(0);
+                }}
+                className={`px-3 py-1 text-xs font-semibold rounded flex items-center gap-1.5 transition ${
+                  activeTab === "rejected"
+                    ? "bg-white shadow-xs text-zinc-900"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Ditolak <span className="text-zinc-400 font-normal">{counts.rejected}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Search Box */}
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(0);
+                }}
                 placeholder="Cari nama atau nomor pesanan"
-                className="h-8 w-full sm:w-56 rounded-md border border-zinc-200 pl-8 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B]"
+                className="h-8 w-full sm:w-64 rounded-md border border-zinc-200 pl-8 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B] transition"
               />
             </div>
-            <button className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
-              <ArrowDown className="h-3 w-3" />
-              Pembayaran
-            </button>
-            <button className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
-              <Filter className="h-3 w-3" />
-              Filter
-            </button>
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setPage(0);
+                }}
+                className="flex h-8 items-center rounded-md border border-zinc-200 px-2.5 text-xs text-zinc-500 hover:bg-zinc-50"
+              >
+                Reset
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Table */}
+        {/* Orders Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-zinc-600">
-            <thead className="border-y border-zinc-100 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider">
+            <thead className="border-y border-zinc-100 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider bg-[#FAF9F7]/50">
               <tr>
                 <th className="px-4 py-3 w-10">
-                  <input type="checkbox" className="rounded border-zinc-300" />
+                  <input type="checkbox" className="rounded border-zinc-300 accent-[#2C4A3B]" />
                 </th>
                 <th className="px-4 py-3 font-medium">No. pesanan</th>
                 <th className="px-4 py-3 font-medium">Proyek / layanan</th>
                 <th className="px-4 py-3 font-medium">Klien</th>
                 <th className="px-4 py-3 font-medium">
                   <span className="flex items-center gap-1">
-                    Tanggal masuk{" "}
-                    <ArrowDown className="h-3 w-3 text-zinc-400" />
+                    Tanggal masuk <ArrowDown className="h-3 w-3 text-zinc-400" />
                   </span>
                 </th>
                 <th className="px-4 py-3 font-medium">Nilai pesanan</th>
                 <th className="px-4 py-3 font-medium">Status proyek</th>
                 <th className="px-4 py-3 font-medium">Pembayaran</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-4 py-3 text-right">Tindakan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {/* Row 1 */}
-              <tr className="hover:bg-zinc-50/50">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="rounded border-zinc-300" />
-                </td>
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  ORD-26006
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Rumah Tebet</p>
-                  <p className="text-xs text-zinc-500">Hunian · 45 m²</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Dimas Putra</p>
-                  <p className="text-xs text-zinc-500">Jakarta Selatan</p>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">3 Okt 2026</td>
-                <td className="px-4 py-3 font-semibold text-zinc-900">
-                  Rp 30.000.000
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 border border-orange-200/50">
-                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>{" "}
-                    Pesanan baru
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-red-600 font-medium">
-                  Belum bayar
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-zinc-400 hover:text-zinc-600">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+              {isLoading ? (
+                // Skeleton loading rows
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} className="animate-pulse">
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-4 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-24 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-32 bg-zinc-100 rounded mb-1.5"></div>
+                      <div className="h-3 w-20 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-28 bg-zinc-100 rounded mb-1.5"></div>
+                      <div className="h-3 w-24 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-20 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-24 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-5 w-24 bg-zinc-100 rounded-full"></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-16 bg-zinc-100 rounded"></div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="h-4 w-6 bg-zinc-100 rounded ml-auto"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : orders.length === 0 ? (
+                // Empty state
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center">
+                    <div className="max-w-sm mx-auto flex flex-col items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-[#E8EDEA] flex items-center justify-center text-[#2C4A3B] mb-3">
+                        <Inbox className="h-6 w-6" />
+                      </div>
+                      <p className="text-base font-bold text-zinc-900 mb-1">
+                        Belum ada pesanan
+                      </p>
+                      <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                        {searchQuery
+                          ? `Tidak ditemukan pesanan yang sesuai dengan kata kunci "${searchQuery}".`
+                          : activeTab !== "all"
+                          ? `Belum ada pesanan dengan status kelompok "${activeTab}".`
+                          : "Belum ada pesanan yang masuk ke sistem. Buat pesanan baru sekarang."}
+                      </p>
+                      <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#2C4A3B] rounded-md hover:bg-[#233A2E] transition shadow-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Buat pesanan baru
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                // Real rows
+                orders.map((order) => {
+                  const style = getStatusGroupStyle(order.status_group);
+                  const isSentToAdmin = order.status === "sent_to_admin";
+                  const isAcceptingThis = acceptingId === order.id;
 
-              {/* Row 2 */}
-              <tr className="hover:bg-zinc-50/50">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="rounded border-zinc-300" />
-                </td>
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  ORD-26005
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Studio Bintaro</p>
-                  <p className="text-xs text-zinc-500">Komersial · 50 m²</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Maya Lestari</p>
-                  <p className="text-xs text-zinc-500">Tangerang Selatan</p>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">2 Okt 2026</td>
-                <td className="px-4 py-3 font-semibold text-zinc-900">
-                  Rp 45.000.000
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 border border-orange-200/50">
-                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>{" "}
-                    Pesanan baru
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-red-600 font-medium">
-                  Belum bayar
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-zinc-400 hover:text-zinc-600">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+                  return (
+                    <tr key={order.id} className="hover:bg-zinc-50/60 transition-colors">
+                      {/* Checkbox */}
+                      <td className="px-4 py-3.5">
+                        <input type="checkbox" className="rounded border-zinc-300 accent-[#2C4A3B]" />
+                      </td>
 
-              {/* Row 3 */}
-              <tr className="hover:bg-zinc-50/50">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="rounded border-zinc-300" />
-                </td>
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  ORD-26003
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Kafe Kala</p>
-                  <p className="text-xs text-zinc-500">Komersial · 65 m²</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Ari Wibowo</p>
-                  <p className="text-xs text-zinc-500">Jakarta Selatan</p>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">19 Sep 2026</td>
-                <td className="px-4 py-3 font-semibold text-zinc-900">
-                  Rp 85.000.000
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200/50">
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>{" "}
-                    Instalasi
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-zinc-600 font-medium flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Lunas
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-zinc-400 hover:text-zinc-600">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+                      {/* Code */}
+                      <td className="px-4 py-3.5 font-medium text-zinc-900 font-mono text-xs">
+                        {order.code}
+                      </td>
 
-              {/* Row 4 */}
-              <tr className="hover:bg-zinc-50/50">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="rounded border-zinc-300" />
-                </td>
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  ORD-26002
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">
-                    Apartemen Senopati
-                  </p>
-                  <p className="text-xs text-zinc-500">Apartemen · 85 m²</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Sarah Wijaya</p>
-                  <p className="text-xs text-zinc-500">Jakarta Selatan</p>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">16 Sep 2026</td>
-                <td className="px-4 py-3 font-semibold text-zinc-900">
-                  Rp 120.000.000
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-700 border border-yellow-200/50">
-                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>{" "}
-                    Produksi
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-zinc-600 font-medium">
-                  DP 50%
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-zinc-400 hover:text-zinc-600">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+                      {/* Title & Room Type */}
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-zinc-900">{order.title}</p>
+                        <p className="text-xs text-zinc-500">
+                          {order.room_type || "Interior"} ·{" "}
+                          {order.total_area > 0 ? `${order.total_area} m²` : "Luas belum diisi"}
+                        </p>
+                      </td>
 
-              {/* Row 5 */}
-              <tr className="hover:bg-zinc-50/50">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="rounded border-zinc-300" />
-                </td>
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  ORD-26001
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Rumah Cipete</p>
-                  <p className="text-xs text-zinc-500">Hunian · 120 m²</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Budi Santoso</p>
-                  <p className="text-xs text-zinc-500">Jakarta Selatan</p>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">10 Sep 2026</td>
-                <td className="px-4 py-3 font-semibold text-zinc-900">
-                  Rp 145.000.000
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 border border-purple-200/50">
-                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>{" "}
-                    Desain
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-zinc-600 font-medium">
-                  DP 50%
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-zinc-400 hover:text-zinc-600">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+                      {/* Customer Name & Phone */}
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-zinc-900">
+                          {order.customer_name || "Tanpa nama"}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {order.customer_phone || order.customer_email || "-"}
+                        </p>
+                      </td>
 
-              {/* Row 6 */}
-              <tr className="hover:bg-zinc-50/50">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="rounded border-zinc-300" />
-                </td>
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  ORD-26004
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">Kantor Aksara</p>
-                  <p className="text-xs text-zinc-500">Komersial · 75 m²</p>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-900">PT Aksara</p>
-                  <p className="text-xs text-zinc-500">Jakarta Pusat</p>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">5 Sep 2026</td>
-                <td className="px-4 py-3 font-semibold text-zinc-900">
-                  Rp 60.000.000
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-200/50">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>{" "}
-                    Selesai
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-zinc-600 font-medium flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Lunas
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-zinc-400 hover:text-zinc-600">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+                      {/* Submitted Date */}
+                      <td className="px-4 py-3.5 text-zinc-600 text-xs">
+                        {formatTanggal(order.submitted_at)}
+                      </td>
+
+                      {/* Order Value */}
+                      <td className="px-4 py-3.5 font-semibold text-zinc-900 text-xs">
+                        {formatRupiah(order.order_value)}
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${style.bg} ${style.text}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`}></span>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </td>
+
+                      {/* Payment (Simulated/Estimated based on status) */}
+                      <td className="px-4 py-3.5 text-xs font-medium">
+                        {order.status === "completed" ? (
+                          <span className="text-zinc-600 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Lunas
+                          </span>
+                        ) : order.status_group === "new" ? (
+                          <span className="text-red-600">Belum bayar</span>
+                        ) : (
+                          <span className="text-zinc-600">DP 50%</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {isSentToAdmin && (
+                            <button
+                              onClick={() => handleAcceptOrder(order.id, order.title)}
+                              disabled={isAcceptingThis}
+                              className="px-2.5 py-1 text-[11px] font-semibold text-white bg-[#2C4A3B] hover:bg-[#233A2E] rounded-md transition shadow-2xs flex items-center gap-1 disabled:opacity-50"
+                              title="Terima pesanan ini dan mulai proses"
+                            >
+                              {isAcceptingThis ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  Memproses...
+                                </>
+                              ) : (
+                                "Terima"
+                              )}
+                            </button>
+                          )}
+                          <button
+                            className="p-1 text-zinc-400 hover:text-zinc-700 transition"
+                            title="Lihat detail pesanan"
+                          >
+                            <ArrowUpRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination Bar */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4 pt-4 border-t border-zinc-100">
           <p className="text-xs text-zinc-500">
-            Menampilkan 1–6 dari 6 pesanan · Total Rp 485.000.000
+            Menampilkan {startItem}–{endItem} dari {total} pesanan · Total{" "}
+            {formatRupiah(totalValue)}
           </p>
           <div className="flex items-center gap-1">
-            <button className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0 || isLoading}
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 disabled:opacity-40 transition"
+              title="Halaman sebelumnya"
+            >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2C4A3B] text-xs font-semibold text-white">
-              1
-            </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
+
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={`page-${i}`}
+                onClick={() => setPage(i)}
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold transition ${
+                  page === i
+                    ? "bg-[#2C4A3B] text-white"
+                    : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1 || isLoading}
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 disabled:opacity-40 transition"
+              title="Halaman berikutnya"
+            >
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Bottom Cards */}
+      {/* Bottom Cards: Perlu konfirmasi & Jadwal pembayaran */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Perlu konfirmasi */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-6">
+        {/* Perlu konfirmasi (Dynamic from real backend data) */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-lg font-bold text-zinc-900">
-                Perlu konfirmasi
-              </h3>
+              <h3 className="text-lg font-bold text-zinc-900">Perlu konfirmasi</h3>
               <p className="text-sm text-zinc-500">
-                2 permintaan baru siap ditinjau.
+                Permintaan pesanan baru siap ditinjau dan diterima admin.
               </p>
             </div>
             <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-bold text-orange-700">
-              ⚡ 2 baru
+              ⚡ {counts.new} baru
             </span>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-sm text-zinc-900">
-                  Rumah Tebet · Dimas Putra
-                </p>
-                <p className="text-xs text-zinc-500">
-                  ORD-26006 · 3 Okt 2026
-                </p>
-              </div>
-              <button className="text-xs font-bold text-[#2C4A3B] hover:underline flex items-center gap-1">
-                Tinjau pesanan <ArrowUpRight className="h-3 w-3" />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-sm text-zinc-900">
-                  Studio Bintaro · Maya Lestari
-                </p>
-                <p className="text-xs text-zinc-500">
-                  ORD-26005 · 2 Okt 2026
-                </p>
-              </div>
-              <button className="text-xs font-bold text-[#2C4A3B] hover:underline flex items-center gap-1">
-                Tinjau pesanan <ArrowUpRight className="h-3 w-3" />
-              </button>
-            </div>
+            {newOrdersList.length === 0 ? (
+              <p className="text-xs text-zinc-400 py-3">
+                Tidak ada pesanan baru yang menunggu konfirmasi saat ini.
+              </p>
+            ) : (
+              newOrdersList.map((no) => (
+                <div key={`bottom-new-${no.id}`} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm text-zinc-900">
+                      {no.title} · {no.customer_name || "Tanpa nama"}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {no.code} · {formatTanggal(no.submitted_at)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleAcceptOrder(no.id, no.title)}
+                    disabled={acceptingId === no.id}
+                    className="text-xs font-bold text-[#2C4A3B] hover:underline flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {acceptingId === no.id ? "Menerima..." : "Terima pesanan"}
+                    <ArrowUpRight className="h-3 w-3" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Jadwal pembayaran */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-6">
+        {/* Jadwal pembayaran (Estimated / Module coming soon according to contract) */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs">
           <div className="mb-4">
-            <h3 className="text-lg font-bold text-zinc-900">
-              Jadwal pembayaran
-            </h3>
+            <h3 className="text-lg font-bold text-zinc-900">Jadwal pembayaran</h3>
             <p className="text-sm text-zinc-500">
               Termin berikutnya untuk proyek yang sedang berjalan.
             </p>
@@ -450,25 +742,17 @@ export default function Pesanan() {
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-900">
-                Apartemen Senopati · Pelunasan
-              </p>
-              <p className="text-sm font-bold text-zinc-900">
-                Rp 60 jt · 12 Okt
-              </p>
+              <p className="text-sm text-zinc-900">Apartemen Senopati · Pelunasan</p>
+              <p className="text-sm font-bold text-zinc-900">Rp 60 jt · 12 Okt</p>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-900">
-                Rumah Cipete · Pelunasan
-              </p>
-              <p className="text-sm font-bold text-zinc-900">
-                Rp 72,5 jt · 18 Okt
-              </p>
+              <p className="text-sm text-zinc-900">Rumah Cipete · Pelunasan</p>
+              <p className="text-sm font-bold text-zinc-900">Rp 72,5 jt · 18 Okt</p>
             </div>
           </div>
 
           <p className="text-[10px] text-zinc-400 mt-4 pt-3 border-t border-zinc-100">
-            Tanggal estimasi mengikuti target proyek; belum jatuh tempo.
+            Data jadwal pembayaran simulasi · Menunggu integrasi modul termin pembayaran client.
           </p>
         </div>
       </div>
@@ -476,8 +760,21 @@ export default function Pesanan() {
       {/* Footer */}
       <div className="flex items-center justify-between text-xs text-zinc-400 pt-4 border-t border-zinc-200/50">
         <p>Renovin. · Ruang kerja studio interior</p>
-        <p>Terakhir diperbarui 3 Okt 2026, 09.41 WIB</p>
+        <p>Data tersambung dengan backend Supabase view admin_orders</p>
       </div>
+
+      {/* Create Order Modal */}
+      <CreateOrderModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setToastMessage({
+            type: "success",
+            text: "Pesanan baru berhasil dibuat dan ditambahkan ke daftar!",
+          });
+          reloadOrders();
+        }}
+      />
     </div>
   );
 }
