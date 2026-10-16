@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   Download,
   Plus,
@@ -246,13 +247,13 @@ export default function Pesanan() {
             <Download className="h-4 w-4" />
             Ekspor data
           </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
+          <Link
+            href="/workplace/pesanan/baru"
             className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E] shadow-sm transition"
           >
             <Plus className="h-4 w-4" />
             Pesanan baru
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -526,13 +527,13 @@ export default function Pesanan() {
                           ? `Belum ada pesanan dengan status kelompok "${activeTab}".`
                           : "Belum ada pesanan yang masuk ke sistem. Buat pesanan baru sekarang."}
                       </p>
-                      <button
-                        onClick={() => setIsModalOpen(true)}
+                      <Link
+                        href="/workplace/pesanan/baru"
                         className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#2C4A3B] rounded-md hover:bg-[#233A2E] transition shadow-xs"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Buat pesanan baru
-                      </button>
+                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -557,7 +558,12 @@ export default function Pesanan() {
 
                       {/* Title & Room Type */}
                       <td className="px-4 py-3.5">
-                        <p className="font-semibold text-zinc-900">{order.title}</p>
+                        <Link
+                          href={`/workplace/pesanan/${order.id}`}
+                          className="font-semibold text-zinc-900 hover:text-[#2C4A3B] transition"
+                        >
+                          {order.title}
+                        </Link>
                         <p className="text-xs text-zinc-500">
                           {order.room_type || "Interior"} ·{" "}
                           {order.total_area > 0 ? `${order.total_area} m²` : "Luas belum diisi"}
@@ -627,12 +633,13 @@ export default function Pesanan() {
                               )}
                             </button>
                           )}
-                          <button
+                          <Link
+                            href={`/workplace/pesanan/${order.id}`}
                             className="p-1 text-zinc-400 hover:text-zinc-700 transition"
-                            title="Lihat detail pesanan"
+                            title="Lihat rincian bahan bangunan pesanan"
                           >
                             <ArrowUpRight className="h-4 w-4" />
-                          </button>
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -710,21 +717,31 @@ export default function Pesanan() {
               newOrdersList.map((no) => (
                 <div key={`bottom-new-${no.id}`} className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-sm text-zinc-900">
+                    <Link
+                      href={`/workplace/pesanan/${no.id}`}
+                      className="font-semibold text-sm text-zinc-900 hover:text-[#2C4A3B] transition"
+                    >
                       {no.title} · {no.customer_name || "Tanpa nama"}
-                    </p>
+                    </Link>
                     <p className="text-xs text-zinc-500">
                       {no.code} · {formatTanggal(no.submitted_at)}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleAcceptOrder(no.id, no.title)}
-                    disabled={acceptingId === no.id}
-                    className="text-xs font-bold text-[#2C4A3B] hover:underline flex items-center gap-1 disabled:opacity-50"
-                  >
-                    {acceptingId === no.id ? "Menerima..." : "Terima pesanan"}
-                    <ArrowUpRight className="h-3 w-3" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleAcceptOrder(no.id, no.title)}
+                      disabled={acceptingId === no.id}
+                      className="text-xs font-bold text-[#2C4A3B] hover:underline flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {acceptingId === no.id ? "Menerima..." : "Terima pesanan"}
+                    </button>
+                    <Link
+                      href={`/workplace/pesanan/${no.id}`}
+                      className="text-xs font-bold text-zinc-500 hover:text-zinc-800 flex items-center gap-0.5"
+                    >
+                      Tinjau <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
               ))
             )}

@@ -135,7 +135,7 @@ export default function RuangKerjaLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-[#E5E0D8] bg-[#F4F1ED] flex flex-col justify-between overflow-y-auto transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-[#E5E0D8] bg-[#F4F1ED] flex flex-col justify-between overflow-y-auto transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 print:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -271,9 +271,9 @@ export default function RuangKerjaLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col bg-[#F9F8F6] min-w-0">
+      <main className="flex-1 flex flex-col bg-[#F9F8F6] min-w-0 print:bg-white print:min-h-0">
         {/* Header */}
-        <header className="flex h-14 lg:h-16 items-center justify-between border-b border-[#E5E0D8] px-4 lg:px-8 bg-[#F4F1ED] sticky top-0 z-30">
+        <header className="flex h-14 lg:h-16 items-center justify-between border-b border-[#E5E0D8] px-4 lg:px-8 bg-[#F4F1ED] sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-3">
             {/* Hamburger button - mobile only */}
             <button
@@ -317,7 +317,7 @@ export default function RuangKerjaLayout({
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">{children}</div>
+        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 print:p-0 print:overflow-visible">{children}</div>
       </main>
     </div>
   );

@@ -128,3 +128,73 @@
     @apply font-sans;
   }
 }
+
+/* Print optimization for official documents & RAB */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #18181b !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force hide navigation and interactive components */
+  aside,
+  header,
+  nav,
+  .print-hidden,
+  [data-print-hidden] {
+    display: none !important;
+  }
+
+  /* Executive Card 1: Exactly Page 1 */
+  .print-card-page1 {
+    break-after: page !important;
+    page-break-after: always !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+  }
+
+  /* Side-by-side photos in print */
+  .print-photos-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  .print-photo-box {
+    height: 180px !important;
+    max-height: 180px !important;
+    aspect-ratio: auto !important;
+    overflow: hidden !important;
+  }
+
+  .print-photo-box img {
+    height: 180px !important;
+    width: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* Page break avoidance */
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+  }
+
+  /* Clean up inputs and selects in print */
+  .print-clean-input {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    height: auto !important;
+    color: #18181b !important;
+  }
+}
