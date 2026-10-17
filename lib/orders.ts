@@ -122,6 +122,7 @@ export interface FetchOrdersResult {
   total: number
   counts: Record<OrderStatusGroup | 'all', number>
   totalValue: number
+  summary: DashboardSummaryData | null
 }
 
 export async function fetchOrders({
@@ -130,8 +131,7 @@ export async function fetchOrders({
   page = 0,
   pageSize = DEFAULT_PAGE_SIZE,
 }: FetchOrdersParams = {}): Promise<FetchOrdersResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createClient() as any
+  const supabase = createClient()
 
   // 1. Build main query for paginated rows
   let query = supabase
@@ -155,6 +155,7 @@ export async function fetchOrders({
 
   const { data, count, error } = await query
   if (error) throw error
+  const orders = (data ?? []) as AdminOrder[]
 
   // 2. Jumlah per tab + total nilai: satu panggilan dashboard_summary
   //    (dihitung dari admin_orders, tanpa filter pencarian)
@@ -169,10 +170,11 @@ export async function fetchOrders({
   const totalValue = summary?.total_order_value ?? 0
 
   return {
-    orders: (data as unknown as AdminOrder[]) ?? [],
+    orders,
     total: count ?? 0,
     counts: { ...counts, all: allCount },
     totalValue,
+    summary,
   }
 }
 
@@ -190,15 +192,14 @@ export interface DashboardSummaryData {
 }
 
 export async function fetchDashboardSummary(): Promise<DashboardSummaryData | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createClient() as any
+  const supabase = createClient()
   try {
     const { data, error } = await supabase.rpc('dashboard_summary').single()
     if (error) {
       console.warn('dashboard_summary RPC error:', error.message)
       return null
     }
-    return data as DashboardSummaryData
+    return data as unknown as DashboardSummaryData
   } catch {
     return null
   }
@@ -214,12 +215,12 @@ export interface CustomerProfile {
 
 // Fetch list of profiles (customers) for order creation dropdown
 export async function fetchCustomers(): Promise<CustomerProfile[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createClient() as any
+  const supabase = createClient()
   try {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, email, phone, role')
+      .eq('role', 'customer')
       .order('full_name', { ascending: true })
 
     if (error) {
@@ -246,6 +247,8 @@ export interface CreateOrderInput {
 
 // Create a new order by admin
 export async function createOrder(input: CreateOrderInput) {
+  // TODO(tambah pesanan): fitur ini ditunda. Insert langsung ke projects ditolak
+  // database (lihat review-fitur-pesanan.md P1); perlu RPC admin_create_order.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createClient() as any
 
