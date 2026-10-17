@@ -143,10 +143,7 @@
     print-color-adjust: exact !important;
   }
 
-  /* Force hide navigation and interactive components */
-  aside,
-  header,
-  nav,
+  /* Sembunyikan elemen yang ditandai. Sidebar & header layout sudah memakai print:hidden. */
   .print-hidden,
   [data-print-hidden] {
     display: none !important;

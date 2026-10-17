@@ -43,6 +43,7 @@ export default function Pesanan() {
     rejected: 0,
   });
   const [totalValue, setTotalValue] = useState(0);
+  const [summary, setSummary] = useState<FetchOrdersResult["summary"]>(null);
 
   // Filters & Pagination
   const [activeTab, setActiveTab] = useState<OrderStatusGroup | "all">("all");
@@ -88,6 +89,7 @@ export default function Pesanan() {
           setTotal(res.total);
           setCounts(res.counts);
           setTotalValue(res.totalValue);
+          setSummary(res.summary);
           setError(null);
           setIsLoading(false);
         }
@@ -288,36 +290,26 @@ export default function Pesanan() {
             )}
           </p>
           <p className="text-xs text-white/70">
-            Total nilai dari {counts.all} pesanan
+            Total RAB dari {summary?.valued_orders ?? 0} pesanan (tanpa yang ditolak)
           </p>
         </div>
 
-        {/* Card 3: Pembayaran diterima (Data simulasi sesuai kontrak backend) */}
+        {/* Card 3: Menunggu persetujuan super admin */}
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-500">Pembayaran diterima</p>
-            <span className="text-[10px] text-zinc-400 font-medium">Estimasi</span>
-          </div>
+          <p className="text-sm font-medium text-zinc-500">Menunggu persetujuan</p>
           <p className="text-4xl font-bold tracking-tight text-zinc-900">
-            Rp 277,5 jt
+            {isLoading ? "–" : summary?.in_progress_by_status?.pending_approval ?? 0}
           </p>
-          <p className="text-xs text-zinc-400">
-            2 lunas · 2 uang muka 50%
-          </p>
+          <p className="text-xs text-zinc-400">RAB menunggu keputusan super admin</p>
         </div>
 
-        {/* Card 4: Sisa pembayaran */}
+        {/* Card 4: Pesanan yang belum punya RAB */}
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-500">Sisa pembayaran</p>
-            <span className="text-[10px] text-zinc-400 font-medium">Estimasi</span>
-          </div>
+          <p className="text-sm font-medium text-zinc-500">Belum ada RAB</p>
           <p className="text-4xl font-bold tracking-tight text-zinc-900">
-            Rp 207,5 jt
+            {isLoading ? "–" : Math.max(0, (summary?.total_orders ?? 0) - (summary?.valued_orders ?? 0))}
           </p>
-          <p className="text-xs text-zinc-400">
-            Termasuk {counts.new} pesanan baru
-          </p>
+          <p className="text-xs text-zinc-400">Termasuk {counts.new} pesanan baru</p>
         </div>
       </div>
 
@@ -755,28 +747,12 @@ export default function Pesanan() {
           </div>
         </div>
 
-        {/* Jadwal pembayaran (Estimated / Module coming soon according to contract) */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-zinc-900">Jadwal pembayaran</h3>
-            <p className="text-sm text-zinc-500">
-              Termin berikutnya untuk proyek yang sedang berjalan.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-900">Apartemen Senopati · Pelunasan</p>
-              <p className="text-sm font-bold text-zinc-900">Rp 60 jt · 12 Okt</p>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-900">Rumah Cipete · Pelunasan</p>
-              <p className="text-sm font-bold text-zinc-900">Rp 72,5 jt · 18 Okt</p>
-            </div>
-          </div>
-
-          <p className="text-[10px] text-zinc-400 mt-4 pt-3 border-t border-zinc-100">
-            Data jadwal pembayaran simulasi · Menunggu integrasi modul termin pembayaran client.
+        {/* Pembayaran: menunggu fitur pembayaran (aturan termin dari client) */}
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 shadow-2xs flex flex-col justify-center">
+          <h3 className="text-lg font-bold text-zinc-900">Jadwal pembayaran</h3>
+          <p className="text-sm text-zinc-500 mt-1">
+            Fitur pembayaran (uang muka, termin, pelunasan) sedang disiapkan. Jadwal dan
+            status pembayaran akan tampil di sini setelah fitur tersedia.
           </p>
         </div>
       </div>
