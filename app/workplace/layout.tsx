@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { fetchDashboardSummary } from "@/lib/orders";
 import { useState, useEffect } from "react";
 
 import {
@@ -91,6 +92,24 @@ export default function RuangKerjaLayout({
     fetchUser();
   }, []);
 
+  // Angka di sidebar dari dashboard_summary. Dimuat ulang setiap pindah halaman,
+  // supaya ikut berubah setelah pesanan diterima / status berubah.
+  const [badges, setBadges] = useState<{ newOrders: number; allOrders: number } | null>(null);
+  useEffect(() => {
+    let ignore = false;
+    fetchDashboardSummary().then((s) => {
+      if (ignore || !s) return;
+      setBadges({
+        newOrders: s.new_orders,
+        allOrders: s.new_orders + s.in_progress_orders + s.done_orders + s.rejected_orders,
+      });
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [pathname]);
+  const badgeText = (n: number | undefined) => (n ? String(n) : undefined);
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -105,13 +124,13 @@ export default function RuangKerjaLayout({
       name: "Pesanan Baru",
       href: "/workplace/pesanan-baru",
       icon: MailWarning,
-      badge: "4",
+      badge: badgeText(badges?.newOrders),
     },
     {
       name: "Daftar Pesanan",
       href: "/workplace/pesanan",
       icon: Inbox,
-      badge: "6",
+      badge: badgeText(badges?.allOrders),
     },
     { name: "Katalog Bahan", href: "/workplace/katalog", icon: Package },
     { name: "Klien", href: "/workplace/klien", icon: Users },
