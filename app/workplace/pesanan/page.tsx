@@ -47,6 +47,8 @@ export default function Pesanan() {
   // Filters & Pagination
   const [activeTab, setActiveTab] = useState<OrderStatusGroup | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  // Kata kunci yang benar-benar dikirim ke server, ±300 ms setelah berhenti mengetik
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,11 @@ export default function Pesanan() {
     setReloadTrigger((v) => v + 1);
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Load orders from backend
   useEffect(() => {
     let ignore = false;
@@ -71,7 +78,7 @@ export default function Pesanan() {
       try {
         const res: FetchOrdersResult = await fetchOrders({
           statusGroup: activeTab === "all" ? null : activeTab,
-          search: searchQuery,
+          search: debouncedSearch,
           page,
           pageSize: PAGE_SIZE,
         });
@@ -99,7 +106,7 @@ export default function Pesanan() {
     return () => {
       ignore = true;
     };
-  }, [activeTab, searchQuery, page, reloadTrigger]);
+  }, [activeTab, debouncedSearch, page, reloadTrigger]);
 
   // Auto clear toast after 4 seconds
   useEffect(() => {

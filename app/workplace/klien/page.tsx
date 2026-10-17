@@ -1,20 +1,107 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   Download,
   Search,
-  MoreHorizontal,
   Mail,
   Phone,
-  MapPin,
   MessageSquare,
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
-  PenSquare,
+  Loader2,
 } from "lucide-react";
+import {
+  fetchClients,
+  getClientStatusLabel,
+  getClientStatusStyle,
+  getInitials,
+  downloadClientsCsv,
+  type AdminClient,
+} from "@/lib/clients";
+import {
+  formatRupiah,
+  formatRupiahCompact,
+  formatTanggal,
+  formatTanggalWaktu,
+  getStatusLabel,
+} from "@/lib/orders";
+
+const PAGE_SIZE = 10;
+
+type Tab = "all" | "active" | "new";
 
 export default function Klien() {
+  const [clients, setClients] = useState<AdminClient[]>([]);
+  const [loadedAt, setLoadedAt] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [tab, setTab] = useState<Tab>("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    fetchClients()
+      .then((rows) => {
+        if (ignore) return;
+        setClients(rows);
+        setLoadedAt(new Date().toISOString());
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (ignore) return;
+        console.error("Gagal memuat klien:", err);
+        setError(err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data klien.");
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const activeClients = useMemo(() => clients.filter((c) => c.client_status === "active"), [clients]);
+  const newClients = useMemo(() => clients.filter((c) => c.client_status === "new"), [clients]);
+  const totalValue = useMemo(() => clients.reduce((sum, c) => sum + (c.total_order_value || 0), 0), [clients]);
+  const totalOrders = useMemo(() => clients.reduce((sum, c) => sum + (c.order_count || 0), 0), [clients]);
+
+  // Tab + pencarian (nama, email, telepon) di FE
+  const filtered = useMemo(() => {
+    const base = tab === "active" ? activeClients : tab === "new" ? newClients : clients;
+    const kw = search.trim().toLowerCase();
+    if (!kw) return base;
+    return base.filter((c) =>
+      [c.full_name, c.email, c.phone].some((v) => v?.toLowerCase().includes(kw)),
+    );
+  }, [tab, search, clients, activeClients, newClients]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  // Panel kanan: klien yang dipilih, atau baris pertama yang sedang tampil
+  const selected = clients.find((c) => c.id === selectedId) ?? pageRows[0] ?? null;
+
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setPage(0);
+  };
+
+  const namesPreview = (list: AdminClient[], sep: string) => {
+    const names = list.slice(0, 3).map((c) => c.full_name ?? "Tanpa nama");
+    if (list.length > 3) names.push(`+${list.length - 3} lainnya`);
+    return names.join(sep) || "Belum ada";
+  };
+
+  const tabClass = (t: Tab) =>
+    tab === t
+      ? "px-3 py-1.5 text-xs font-semibold rounded bg-white shadow-sm text-zinc-900 flex items-center gap-1.5"
+      : "px-3 py-1.5 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5";
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -26,41 +113,45 @@ export default function Klien() {
             dengan mudah.
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+        <button
+          onClick={() => downloadClientsCsv(filtered)}
+          disabled={filtered.length === 0}
+          className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <Download className="h-4 w-4" />
           Ekspor data
         </button>
       </div>
 
+      {error && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          Gagal memuat data klien: {error}
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
           <p className="text-sm font-medium text-zinc-500">Total klien</p>
-          <p className="text-4xl font-bold text-zinc-900">6</p>
-          <p className="text-xs text-zinc-400">5 perorangan · 1 perusahaan</p>
+          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : clients.length}</p>
+          <p className="text-xs text-zinc-400">{totalOrders} pesanan dari semua klien</p>
         </div>
         <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
-          <p className="text-sm font-medium text-white/80">
-            Klien proyek aktif
-          </p>
-          <p className="text-4xl font-bold">3</p>
-          <p className="text-xs text-white/70">
-            Budi Santoso · Sarah Wijaya · Ari Wibowo
-          </p>
+          <p className="text-sm font-medium text-white/80">Klien proyek aktif</p>
+          <p className="text-4xl font-bold">{isLoading ? "–" : activeClients.length}</p>
+          <p className="text-xs text-white/70 truncate">{namesPreview(activeClients, " · ")}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
           <p className="text-sm font-medium text-zinc-500">Klien baru</p>
-          <p className="text-4xl font-bold text-zinc-900">2</p>
-          <p className="text-xs text-zinc-400">Dimas Putra & Maya Lestari</p>
+          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : newClients.length}</p>
+          <p className="text-xs text-zinc-400 truncate">{namesPreview(newClients, " & ")}</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <p className="text-sm font-medium text-zinc-500">
-            Nilai hubungan klien
-          </p>
+          <p className="text-sm font-medium text-zinc-500">Nilai hubungan klien</p>
           <p className="text-4xl font-bold tracking-tight text-zinc-900">
-            Rp 485 jt
+            {isLoading ? "–" : formatRupiahCompact(totalValue)}
           </p>
-          <p className="text-xs text-zinc-400">Total nilai 6 pesanan studio</p>
+          <p className="text-xs text-zinc-400">Total nilai {totalOrders} pesanan studio</p>
         </div>
       </div>
 
@@ -71,24 +162,22 @@ export default function Klien() {
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
             <div className="p-6 pb-4">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-zinc-900">
-                  Daftar klien
-                </h2>
+                <h2 className="text-lg font-bold text-zinc-900">Daftar klien</h2>
                 <span className="rounded-md bg-[#E8EDEA] px-2 py-1 text-xs font-semibold text-[#2C4A3B]">
-                  • 6 klien
+                  • {clients.length} klien
                 </span>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-2">
                 <div className="flex bg-zinc-100 rounded-md p-0.5 w-fit">
-                  <button className="px-3 py-1.5 text-xs font-semibold rounded bg-white shadow-sm text-zinc-900 flex items-center gap-1.5">
-                    Semua <span className="text-zinc-400 font-normal">6</span>
+                  <button onClick={() => changeTab("all")} className={tabClass("all")}>
+                    Semua <span className="text-zinc-400 font-normal">{clients.length}</span>
                   </button>
-                  <button className="px-3 py-1.5 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-                    Aktif <span className="text-zinc-400 font-normal">3</span>
+                  <button onClick={() => changeTab("active")} className={tabClass("active")}>
+                    Aktif <span className="text-zinc-400 font-normal">{activeClients.length}</span>
                   </button>
-                  <button className="px-3 py-1.5 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-                    Baru <span className="text-zinc-400 font-normal">2</span>
+                  <button onClick={() => changeTab("new")} className={tabClass("new")}>
+                    Baru <span className="text-zinc-400 font-normal">{newClients.length}</span>
                   </button>
                 </div>
 
@@ -96,6 +185,11 @@ export default function Klien() {
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(0);
+                    }}
                     placeholder="Cari nama atau kontak"
                     className="h-9 w-full sm:w-64 rounded-md border border-zinc-200 pl-9 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B] placeholder:text-zinc-400"
                   />
@@ -114,239 +208,60 @@ export default function Klien() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {/* Row 1 - Budi Santoso (Active/Selected look) */}
-                  <tr className="hover:bg-zinc-50/50 relative">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
-                          BS
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">
-                            Budi Santoso
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Jakarta Selatan
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        0812 8500 0101
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        budi.santoso@email.com
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        Rumah Cipete
-                      </p>
-                      <p className="text-[11px] text-zinc-500">ORD-26001</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E8EDEA] px-2 py-1 text-[11px] font-semibold text-[#2C4A3B]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-                        Proyek aktif
-                      </span>
-                    </td>
-                  </tr>
-
-                  {/* Row 2 - Sarah Wijaya */}
-                  <tr className="hover:bg-zinc-50/50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
-                          SW
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">
-                            Sarah Wijaya
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Jakarta Selatan
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        0813 8600 0202
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        sarah.wijaya@email.com
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        Apartemen Senopati
-                      </p>
-                      <p className="text-[11px] text-zinc-500">ORD-26002</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E8EDEA] px-2 py-1 text-[11px] font-semibold text-[#2C4A3B]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-                        Proyek aktif
-                      </span>
-                    </td>
-                  </tr>
-
-                  {/* Row 3 - Ari Wibowo */}
-                  <tr className="hover:bg-zinc-50/50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
-                          AW
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">
-                            Ari Wibowo
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Jakarta Selatan
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        0812 8900 0303
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        ari@kafekala.id
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        Kafe Kala
-                      </p>
-                      <p className="text-[11px] text-zinc-500">ORD-26003</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E8EDEA] px-2 py-1 text-[11px] font-semibold text-[#2C4A3B]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-                        Proyek aktif
-                      </span>
-                    </td>
-                  </tr>
-
-                  {/* Row 4 - Dimas Putra */}
-                  <tr className="hover:bg-zinc-50/50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
-                          DP
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">
-                            Dimas Putra
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Jakarta Selatan
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        0812 8700 0606
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        dimas.putra@email.com
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        Rumah Tebet
-                      </p>
-                      <p className="text-[11px] text-zinc-500">ORD-26006</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700">
-                        <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
-                        Klien baru
-                      </span>
-                    </td>
-                  </tr>
-
-                  {/* Row 5 - Maya Lestari */}
-                  <tr className="hover:bg-zinc-50/50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
-                          ML
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">
-                            Maya Lestari
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Tangerang Selatan
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        0813 8800 0505
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        maya.lestari@email.com
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        Studio Bintaro
-                      </p>
-                      <p className="text-[11px] text-zinc-500">ORD-26005</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700">
-                        <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
-                        Klien baru
-                      </span>
-                    </td>
-                  </tr>
-
-                  {/* Row 6 - PT Aksara */}
-                  <tr className="hover:bg-zinc-50/50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
-                          PA
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">
-                            PT Aksara
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Jakarta Pusat
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        021 5700 0404
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        operasional@aksara.id
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-zinc-900 mb-0.5 text-xs">
-                        Kantor Aksara
-                      </p>
-                      <p className="text-[11px] text-zinc-500">ORD-26004</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E8EDEA] px-2 py-1 text-[11px] font-semibold text-[#2C4A3B]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-                        Selesai
-                      </span>
-                    </td>
-                  </tr>
+                  {isLoading && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-10 text-center text-xs text-zinc-500">
+                        <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
+                        Memuat data klien…
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && pageRows.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-10 text-center text-xs text-zinc-500">
+                        {search
+                          ? `Tidak ditemukan klien yang sesuai dengan kata kunci "${search}".`
+                          : "Belum ada klien di tab ini."}
+                      </td>
+                    </tr>
+                  )}
+                  {pageRows.map((c) => {
+                    const style = getClientStatusStyle(c.client_status);
+                    const isSelected = selected?.id === c.id;
+                    return (
+                      <tr
+                        key={c.id}
+                        onClick={() => setSelectedId(c.id)}
+                        className={`cursor-pointer hover:bg-zinc-50/50 ${isSelected ? "bg-zinc-50" : ""}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-xs font-bold text-[#2C4A3B]">
+                              {getInitials(c.full_name)}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-zinc-900">{c.full_name ?? "Tanpa nama"}</p>
+                              <p className="text-[11px] text-zinc-500">Klien sejak {formatTanggal(c.client_since)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-medium text-zinc-900 mb-0.5 text-xs">{c.phone ?? "-"}</p>
+                          <p className="text-[11px] text-zinc-500">{c.email ?? "-"}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-medium text-zinc-900 mb-0.5 text-xs">{c.related_order_title}</p>
+                          <p className="text-[11px] text-zinc-500">{c.related_order_code}</p>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ${style.badge}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`}></span>
+                            {getClientStatusLabel(c.client_status)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -354,146 +269,130 @@ export default function Klien() {
             {/* Pagination */}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-4 border-t border-zinc-100">
               <p className="text-xs text-zinc-500">
-                Menampilkan 1–6 dari 6 klien
+                {filtered.length === 0
+                  ? "Tidak ada klien"
+                  : `Menampilkan ${currentPage * PAGE_SIZE + 1}–${currentPage * PAGE_SIZE + pageRows.length} dari ${filtered.length} klien`}
               </p>
               <div className="flex items-center gap-1">
-                <button className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
+                <button
+                  onClick={() => setPage(Math.max(0, currentPage - 1))}
+                  disabled={currentPage === 0}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50 disabled:opacity-40"
+                >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
-                <button className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2C4A3B] text-xs font-semibold text-white">
-                  1
-                </button>
-                <button className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
+                <span className="flex h-7 min-w-7 px-2 items-center justify-center rounded-md bg-[#2C4A3B] text-xs font-semibold text-white">
+                  {currentPage + 1}
+                </span>
+                <button
+                  onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
+                  disabled={currentPage >= pageCount - 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50 disabled:opacity-40"
+                >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
           </div>
-
-          {/* Alert Banner */}
-          <div className="flex items-center justify-between rounded-xl bg-[#E8EDEA] p-5 border border-[#2C4A3B]/10">
-            <div className="flex items-start gap-3">
-              <MessageSquare className="h-5 w-5 text-[#2C4A3B] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-zinc-900 mb-0.5">
-                  Percakapan yang tepat, proyek yang lebih lancar.
-                </p>
-                <p className="text-xs text-zinc-600">
-                  Dimas Putra dan Maya Lestari belum menerima konfirmasi
-                  pesanan. Jadwalkan konsultasi awal.
-                </p>
-              </div>
-            </div>
-            <button className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm border border-zinc-200 hover:bg-zinc-50">
-              <ArrowUpRight className="h-4 w-4 text-zinc-500" />
-              Tinjau pesanan baru
-            </button>
-          </div>
         </div>
 
         {/* Right Column - Profile Panels */}
         <div className="lg:col-span-4 flex flex-col space-y-4">
-          {/* Client Profile Card */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-zinc-900">Profil klien</h3>
-              <button className="text-zinc-400 hover:text-zinc-600">
-                <MoreHorizontal className="h-5 w-5" />
-              </button>
+          {!selected ? (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 text-xs text-zinc-500">
+              {isLoading ? "Memuat…" : "Pilih klien untuk melihat profilnya."}
             </div>
+          ) : (
+            <>
+              {/* Client Profile Card */}
+              <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-zinc-900">Profil klien</h3>
+                </div>
 
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8EDEA] text-sm font-bold text-[#2C4A3B]">
-                BS
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8EDEA] text-sm font-bold text-[#2C4A3B]">
+                    {getInitials(selected.full_name)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-zinc-900">{selected.full_name ?? "Tanpa nama"}</p>
+                    <p className="text-[11px] text-zinc-500">Klien sejak {formatTanggal(selected.client_since)}</p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold ${getClientStatusStyle(selected.client_status).badge}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${getClientStatusStyle(selected.client_status).dot}`}></span>
+                    {getClientStatusLabel(selected.client_status)}
+                  </span>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-center gap-3 text-sm text-zinc-600">
+                    <Mail className="h-4 w-4 text-zinc-400" />
+                    <span>{selected.email ?? "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-zinc-600">
+                    <Phone className="h-4 w-4 text-zinc-400" />
+                    <span>{selected.phone ?? "-"}</span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-[#F4F1ED] p-4 mb-6 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-zinc-900">{selected.order_count}</p>
+                    <p className="text-[10px] text-zinc-500">Pesanan</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-zinc-900">{selected.active_order_count}</p>
+                    <p className="text-[10px] text-zinc-500">Dikerjakan</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-zinc-900">{selected.done_order_count}</p>
+                    <p className="text-[10px] text-zinc-500">Selesai</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button className="flex-1 flex items-center justify-center gap-2 rounded-md bg-[#2C4A3B] px-3 py-2 text-xs font-semibold text-white hover:bg-[#233A2E]">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Hubungi klien
+                  </button>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-zinc-900">Budi Santoso</p>
-                <p className="text-[11px] text-zinc-500">
-                  Klien sejak 10 Sep 2026
+
+              {/* Related Project Card */}
+              <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                <h3 className="text-lg font-bold text-zinc-900 mb-1">Proyek terkait</h3>
+                <p className="text-[11px] text-zinc-500 mb-6">
+                  {selected.related_order_title} · {selected.related_order_code}
+                </p>
+
+                <div className="mb-6 flex justify-between text-xs">
+                  <span className="font-semibold text-zinc-700">Status</span>
+                  <span className="font-bold text-zinc-900">{getStatusLabel(selected.related_order_status)}</span>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-zinc-100 mb-6">
+                  <p className="font-bold text-sm text-zinc-900">{formatRupiah(selected.related_order_value)}</p>
+                  <span className="text-[10px] text-zinc-500">
+                    Total semua pesanan: {formatRupiahCompact(selected.total_order_value)}
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-zinc-500">
+                  {selected.related_order_admin_name ?? "Belum ada admin penanggung jawab"}
                 </p>
               </div>
-            </div>
-
-            <div className="mb-6">
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E8EDEA] px-2 py-1 text-[10px] font-semibold text-[#2C4A3B]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-                Proyek aktif
-              </span>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-3 text-sm text-zinc-600">
-                <Mail className="h-4 w-4 text-zinc-400" />
-                <span>budi.santoso@email.com</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-zinc-600">
-                <Phone className="h-4 w-4 text-zinc-400" />
-                <span>0812 8500 0101</span>
-              </div>
-              <div className="flex items-start gap-3 text-sm text-zinc-600">
-                <MapPin className="h-4 w-4 text-zinc-400 shrink-0 mt-0.5" />
-                <span>Cipete, Jakarta Selatan</span>
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-[#F4F1ED] p-4 mb-6">
-              <p className="text-[11px] font-bold text-zinc-900 mb-1.5">
-                Preferensi & catatan
-              </p>
-              <p className="text-[11px] leading-relaxed text-zinc-600">
-                Material kayu alami dan palet hangat. Pembaruan desain dikirim
-                melalui aplikasi mobile.
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-md bg-[#2C4A3B] px-3 py-2 text-xs font-semibold text-white hover:bg-[#233A2E]">
-                <MessageSquare className="h-3.5 w-3.5" />
-                Hubungi klien
-              </button>
-            </div>
-          </div>
-
-          {/* Related Project Card */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-6">
-            <h3 className="text-lg font-bold text-zinc-900 mb-1">
-              Proyek terkait
-            </h3>
-            <p className="text-[11px] text-zinc-500 mb-6">
-              Rumah Cipete · ORD-26001
-            </p>
-
-            <div className="mb-6">
-              <div className="flex justify-between text-xs mb-2">
-                <span className="font-semibold text-zinc-700">
-                  Pengembangan desain
-                </span>
-                <span className="font-bold text-zinc-900">45%</span>
-              </div>
-              <div className="relative h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
-                <div className="absolute top-0 left-0 h-full w-[45%] bg-[#2C4A3B] rounded-full"></div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-zinc-100 mb-6">
-              <p className="font-bold text-sm text-zinc-900">Rp 145.000.000</p>
-              <span className="inline-flex items-center gap-1 rounded bg-[#E8EDEA] px-2 py-0.5 text-[10px] font-bold text-[#2C4A3B]">
-                <span className="h-1 w-1 rounded-full bg-[#2C4A3B]"></span>
-                DP 50%
-              </span>
-            </div>
-
-            <p className="text-[10px] text-zinc-500">
-              Nadia A. - Target 18 Okt 2026
-            </p>
-          </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between text-xs text-zinc-400 pt-4 border-t border-zinc-200/50">
         <p>Renovin. · Ruang kerja studio interior</p>
-        <p>Terakhir diperbarui 3 Okt 2026, 09.41 WIB</p>
+        <p>{loadedAt ? `Terakhir diperbarui ${formatTanggalWaktu(loadedAt)}` : ""}</p>
       </div>
     </div>
   );
