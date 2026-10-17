@@ -4,6 +4,7 @@
 //   catalog      publik   folder: products/<product_id>   gambar & aset produk
 //   room-photos  privat   folder: <project_id>            foto ruangan, hasil desain
 //   reports      privat   folder: <project_id>            PDF laporan final
+//   branding     publik   folder: studio                  logo studio (boleh SVG)
 //
 // Simpan KEDUANYA ke database: path (kolom *_file_id) dan url (kolom *_url).
 // Untuk bucket privat, url = path; tampilkan dengan getFileUrl().
@@ -14,12 +15,15 @@
 
 import { createClient } from '@/lib/supabase/client'
 
-export type Bucket = 'catalog' | 'room-photos' | 'reports'
+export type Bucket = 'catalog' | 'room-photos' | 'reports' | 'branding'
+
+const PUBLIC_BUCKETS: Bucket[] = ['catalog', 'branding']
 
 const RULES: Record<Bucket, { types: string[]; maxMb: number }> = {
   catalog: { types: ['image/jpeg', 'image/png', 'image/webp'], maxMb: 5 },
   'room-photos': { types: ['image/jpeg', 'image/png', 'image/webp'], maxMb: 10 },
   reports: { types: ['application/pdf'], maxMb: 10 },
+  branding: { types: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], maxMb: 2 },
 }
 
 export async function uploadFile(
@@ -50,14 +54,14 @@ export async function uploadFile(
   if (error) throw new Error('Upload gagal: ' + error.message)
 
   // 4. Bucket publik -> URL publik; bucket privat -> path (pakai getFileUrl saat ditampilkan)
-  const url = bucket === 'catalog' ? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl : path
+  const url = PUBLIC_BUCKETS.includes(bucket) ? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl : path
 
   return { path, url }
 }
 
 // URL untuk ditampilkan. Bucket privat memakai signed URL yang kedaluwarsa.
 export async function getFileUrl(bucket: Bucket, pathOrUrl: string, expiresInSeconds = 3600): Promise<string> {
-  if (bucket === 'catalog' || pathOrUrl.startsWith('http')) return pathOrUrl
+  if (PUBLIC_BUCKETS.includes(bucket) || pathOrUrl.startsWith('http')) return pathOrUrl
 
   const supabase = createClient()
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(pathOrUrl, expiresInSeconds)
