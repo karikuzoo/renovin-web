@@ -31,6 +31,13 @@ export interface OrderDetail {
   autoItems: RabLineItem[]
   manualItems: RabLineItem[]
   myRole: UserRole | null
+  myId: string | null
+}
+
+export interface StaffMember {
+  id: string
+  full_name: string | null
+  role: UserRole
 }
 
 // Status yang mengizinkan RAB diubah (sama dengan public.can_edit_rab di backend)
@@ -79,7 +86,7 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
   if (!order?.id) return null
   const projectId = order.id
 
-  const [photosRes, rabRes, itemsRes, historyRes, roleRes] = await Promise.all([
+  const [photosRes, rabRes, itemsRes, historyRes, roleRes, userRes] = await Promise.all([
     supabase.from('room_photos').select('original_url, processed_url').eq('project_id', projectId)
       .order('created_at', { ascending: true }).limit(1),
     supabase.from('rabs').select('*').eq('project_id', projectId).maybeSingle(),
@@ -88,6 +95,7 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
     supabase.from('project_status_history').select('changed_at').eq('project_id', projectId)
       .eq('to_status', 'admin_processing').order('changed_at', { ascending: false }).limit(1),
     supabase.rpc('my_role'),
+    supabase.auth.getUser(),
   ])
   for (const r of [photosRes, rabRes, itemsRes, historyRes]) if (r.error) throw r.error
 
@@ -105,6 +113,7 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
     autoItems: items.filter((i) => !i.is_manual),
     manualItems: items.filter((i) => i.is_manual),
     myRole: roleRes.data ?? null,
+    myId: userRes.data.user?.id ?? null,
   }
 }
 
@@ -221,4 +230,38 @@ export function computeTotals(params: {
   }
   const tax = round2(((material + service + params.adjustment) * params.taxPercent) / 100)
   return { material, service, tax, grandTotal: material + service + params.adjustment + tax }
+}
+
+// -----------------------------------------------------------------------------
+// Penanggung jawab pesanan (kontrak: renovin-backend/docs/contract-assign-project.md)
+// -----------------------------------------------------------------------------
+
+// Sama dengan aturan public.assign_project di backend (hanya untuk tampilan;
+// keputusan akhir tetap di backend).
+export function canAssign(
+  status: ProjectStatus,
+  role: UserRole | null,
+  assignedAdminId: string | null,
+  myId: string | null,
+): boolean {
+  if (['draft', 'ready_to_submit', 'completed', 'rejected'].includes(status)) return false
+  if (role === 'super_admin') return true
+  return role === 'admin' && !!myId && assignedAdminId === myId
+}
+
+export async function fetchStaff(): Promise<StaffMember[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, role')
+    .in('role', ['admin', 'super_admin'])
+    .order('full_name')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function assignProject(projectId: string, adminId: string) {
+  const supabase = createClient()
+  const { error } = await supabase.rpc('assign_project', { p_project_id: projectId, p_admin_id: adminId })
+  if (error) throw error
 }

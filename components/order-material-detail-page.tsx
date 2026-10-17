@@ -27,8 +27,10 @@ import {
   getStatusGroupStyle,
   getStatusLabel,
 } from "@/lib/orders";
+import { AssignAdminControl } from "@/components/assign-admin-control";
 import {
   calculateRab,
+  canAssign,
   canEditRab,
   changeStatus,
   computeTotals,
@@ -213,6 +215,7 @@ function OrderDetailView({ orderId }: { orderId: string }) {
 
   const { order, rab, autoItems } = detail;
   const editable = canEditRab(order.status, detail.myRole);
+  const assignable = canAssign(order.status, detail.myRole, order.assigned_admin_id, detail.myId);
   const groupStyle = getStatusGroupStyle(order.status_group);
   const materialRows = rows.filter((r) => r.itemType !== "service");
   const serviceRows = rows.filter((r) => r.itemType === "service");
@@ -582,11 +585,25 @@ function OrderDetailView({ orderId }: { orderId: string }) {
 
               <div className="pt-2 text-xs text-zinc-500 space-y-1 print:pt-1 print:text-[10px]">
                 <p>Masuk {formatTanggalWaktu(order.submitted_at)}</p>
-                <p>
-                  Diterima{" "}
-                  <span className="font-medium text-zinc-800">{order.assigned_admin_name ?? "belum ada admin"}</span>
-                </p>
-                {detail.receivedAt && <p className="text-zinc-400">{formatTanggalWaktu(detail.receivedAt)}</p>}
+                {detail.receivedAt && <p>Diterima {formatTanggalWaktu(detail.receivedAt)}</p>}
+                <div className="flex flex-wrap items-center gap-x-2">
+                  <span>
+                    Penanggung jawab{" "}
+                    <span className="font-medium text-zinc-800">{order.assigned_admin_name ?? "belum ada admin"}</span>
+                  </span>
+                  {assignable && (
+                    <AssignAdminControl
+                      key={order.assigned_admin_id ?? "none"}
+                      projectId={order.id}
+                      currentAdminId={order.assigned_admin_id}
+                      onAssigned={(name) => {
+                        setToastMessage({ type: "success", text: `Penanggung jawab pesanan dipindahkan ke ${name}.` });
+                        reload();
+                      }}
+                      onError={(err) => showError("Gagal memindahkan penanggung jawab", err)}
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
