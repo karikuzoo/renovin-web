@@ -54,48 +54,6 @@ export default function Home({
     }
   }, [initialPanel]);
 
-  if (typeof window !== "undefined") {
-    const searchParams = new URLSearchParams(window.location.search);
-
-    if (searchParams.has("reset") && searchParams.get("reset") === "berhasil") {
-      setResetSuccess(true);
-    }
-
-    if (searchParams.has("forgot") && searchParams.get("forgot") === "true") {
-      setActivePanel("forgot");
-    }
-
-    if (
-      searchParams.has("reset_form") &&
-      searchParams.get("reset_form") === "true"
-    ) {
-      setActivePanel("reset");
-    }
-
-    if (
-      searchParams.has("error") &&
-      searchParams.get("error") === "link-tidak-valid"
-    ) {
-      setForgotError("Link tidak valid atau sudah kedaluwarsa.");
-      setActivePanel("forgot");
-    }
-
-    // Supabase default implicit flow (tanpa PKCE) melempar hash
-    const hash = window.location.hash;
-    if (hash && hash.includes("type=recovery")) {
-      setActivePanel("reset");
-      // Bersihkan hash setelah ditangkap
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname + window.location.search,
-      );
-    } else if (searchParams.toString()) {
-      // Hapus query params
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -486,7 +444,7 @@ export default function Home({
                 <div className="mt-6 text-center">
                   <button
                     type="button"
-                    onClick={() => setActivePanel("login")}
+                    onClick={handleCancelReset}
                     className="text-xs font-medium text-zinc-500 hover:text-zinc-800 hover:underline"
                   >
                     Kembali ke halaman masuk

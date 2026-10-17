@@ -142,8 +142,10 @@ export async function fetchOrders({
     query = query.eq('status_group', statusGroup)
   }
 
-  if (search.trim()) {
-    const kw = `%${search.trim()}%`
+  // Karakter , ( ) "  % * punya arti khusus di filter .or() PostgREST -> dibuang.
+  const keyword = search.replace(/[,()"\\%*]/g, ' ').trim()
+  if (keyword) {
+    const kw = `%${keyword}%`
     query = query.or(`code.ilike.${kw},title.ilike.${kw},customer_name.ilike.${kw}`)
   }
 
@@ -154,37 +156,17 @@ export async function fetchOrders({
   const { data, count, error } = await query
   if (error) throw error
 
-  // 2. Fetch counts per group
-  const countGroups: OrderStatusGroup[] = ['new', 'in_progress', 'done', 'rejected']
-  const countResults = await Promise.all(
-    countGroups.map(async (g) => {
-      const { count: c } = await supabase
-        .from('admin_orders')
-        .select('id', { count: 'exact', head: true })
-        .eq('status_group', g)
-      return [g, c ?? 0] as const
-    }),
-  )
-
-  const counts = Object.fromEntries(countResults) as Record<OrderStatusGroup, number>
-  const allCount = Object.values(counts).reduce((a, b) => a + b, 0)
-
-  // 3. Compute total order value of non-rejected orders
-  let totalValue = 0
-  try {
-    const { data: valData } = await supabase
-      .from('admin_orders')
-      .select('order_value')
-      .neq('status_group', 'rejected')
-
-    if (valData) {
-      totalValue = valData.reduce((acc: number, curr: { order_value: number | null }) => {
-        return acc + (Number(curr.order_value) || 0)
-      }, 0)
-    }
-  } catch (valErr) {
-    console.warn('Could not compute totalValue:', valErr)
+  // 2. Jumlah per tab + total nilai: satu panggilan dashboard_summary
+  //    (dihitung dari admin_orders, tanpa filter pencarian)
+  const summary = await fetchDashboardSummary()
+  const counts: Record<OrderStatusGroup, number> = {
+    new: summary?.new_orders ?? 0,
+    in_progress: summary?.in_progress_orders ?? 0,
+    done: summary?.done_orders ?? 0,
+    rejected: summary?.rejected_orders ?? 0,
   }
+  const allCount = counts.new + counts.in_progress + counts.done + counts.rejected
+  const totalValue = summary?.total_order_value ?? 0
 
   return {
     orders: (data as unknown as AdminOrder[]) ?? [],
