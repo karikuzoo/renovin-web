@@ -411,7 +411,9 @@ export default function Pengaturan() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-700">Email admin</label>
                 <input type="email" value={loaded.me.email ?? ""} disabled className={inputClass} />
-                <p className="text-[10px] text-zinc-400">Email dipakai untuk masuk. Fitur ganti email menyusul.</p>
+                <p className="text-[10px] text-zinc-400">
+                  Email dipakai untuk masuk dan dikelola tim IT. Hubungi tim IT bila perlu mengganti email.
+                </p>
               </div>
             </div>
 
