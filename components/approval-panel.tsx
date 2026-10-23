@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Gavel, History, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
+import { useConfirm } from "@/components/confirm-dialog";
 import { formatTanggalWaktu } from "@/lib/orders";
 import {
   canConfirmFinal,
@@ -41,13 +42,23 @@ export function ApprovalPanel({ projectId, status, role, approvals, onDone, onEr
   const [mode, setMode] = useState<ApprovalDecision | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const showDecide = canDecide(status, role);
   const showConfirm = canConfirmFinal(status, role);
   if (!showDecide && !showConfirm && approvals.length === 0 && status !== "confirmed") return null;
 
   const submitDecision = async (decision: ApprovalDecision) => {
-    if (decision === "rejected" && !window.confirm("Tolak RAB ini? Pesanan akan berstatus Ditolak dan tidak bisa dilanjutkan.")) return;
+    if (
+      decision === "rejected" &&
+      !(await confirm({
+        title: "Tolak RAB ini?",
+        message: "Pesanan akan berstatus Ditolak dan tidak bisa dilanjutkan lagi.",
+        confirmLabel: "Tolak RAB",
+        tone: "danger",
+      }))
+    )
+      return;
     setBusy(true);
     try {
       await decideRab(projectId, decision, note);
@@ -62,7 +73,14 @@ export function ApprovalPanel({ projectId, status, role, approvals, onDone, onEr
   };
 
   const submitConfirm = async () => {
-    if (!window.confirm("Konfirmasi final RAB ini? Snapshot final dibuat dan RAB tidak bisa diubah lagi.")) return;
+    if (
+      !(await confirm({
+        title: "Konfirmasi final RAB?",
+        message: "Snapshot final dibuat sebagai dasar laporan, dan RAB tidak bisa diubah lagi.",
+        confirmLabel: "Konfirmasi final",
+      }))
+    )
+      return;
     setBusy(true);
     try {
       await confirmFinal(projectId);
@@ -76,6 +94,7 @@ export function ApprovalPanel({ projectId, status, role, approvals, onDone, onEr
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-5 print:hidden">
+      {confirmDialog}
       <div className="flex items-center gap-2.5">
         <Gavel className="h-4 w-4 text-zinc-500" />
         <h3 className="text-lg font-bold text-zinc-900">Persetujuan RAB</h3>

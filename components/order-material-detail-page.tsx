@@ -29,6 +29,7 @@ import {
 } from "@/lib/orders";
 import { ApprovalPanel } from "@/components/approval-panel";
 import { AssignAdminControl } from "@/components/assign-admin-control";
+import { useConfirm } from "@/components/confirm-dialog";
 import {
   calculateRab,
   canAssign,
@@ -138,6 +139,7 @@ function OrderDetailView({ orderId }: { orderId: string }) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [busy, setBusy] = useState<null | "save" | "calc" | "draft" | "submit">(null);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [confirm, confirmDialog] = useConfirm();
 
   useEffect(() => {
     let ignore = false;
@@ -271,7 +273,16 @@ function OrderDetailView({ orderId }: { orderId: string }) {
   };
 
   const handleRecalculate = async () => {
-    if (hasUnsavedChanges && !window.confirm("Ada perubahan yang belum disimpan dan akan hilang. Lanjutkan hitung ulang?")) return;
+    if (
+      hasUnsavedChanges &&
+      !(await confirm({
+        title: "Hitung ulang dari desain?",
+        message: "Ada perubahan yang belum disimpan dan akan hilang jika Anda melanjutkan.",
+        confirmLabel: "Hitung ulang",
+        tone: "danger",
+      }))
+    )
+      return;
     setBusy("calc");
     try {
       await calculateRab(order.id);
@@ -301,7 +312,14 @@ function OrderDetailView({ orderId }: { orderId: string }) {
   };
 
   const handleSendForApproval = async () => {
-    if (!window.confirm("Kirim RAB ini ke super admin untuk disetujui? Setelah dikirim, RAB tidak bisa diubah admin.")) return;
+    if (
+      !(await confirm({
+        title: "Kirim RAB untuk persetujuan?",
+        message: "RAB akan dikirim ke super admin untuk disetujui. Setelah dikirim, RAB tidak bisa diubah admin.",
+        confirmLabel: "Kirim RAB",
+      }))
+    )
+      return;
     setBusy("submit");
     try {
       await persist();
@@ -439,6 +457,8 @@ function OrderDetailView({ orderId }: { orderId: string }) {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 print:max-w-none print:w-full print:p-0 print:space-y-4 print:pb-0">
+      {confirmDialog}
+
       {/* Toast Notification */}
       {toastMessage && (
         <div
