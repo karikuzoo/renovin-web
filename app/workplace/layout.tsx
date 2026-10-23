@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchDashboardSummary } from "@/lib/orders";
+import { NotificationBell } from "@/components/notification-bell";
 import { useState, useEffect } from "react";
 
 import {
@@ -19,7 +20,6 @@ import {
   LogOut,
   ChevronDown,
   Search,
-  Bell,
   ChevronRight,
   ArrowRight,
   Menu,
@@ -325,10 +325,7 @@ export default function RuangKerjaLayout({
             <button className="md:hidden text-zinc-500 hover:text-zinc-700">
               <Search className="h-5 w-5" />
             </button>
-            <button className="relative text-zinc-500 hover:text-zinc-700">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#F4F1ED]"></span>
-            </button>
+            <NotificationBell />
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2C4A3B] text-xs font-medium text-white">
               {user.initials}
             </div>
