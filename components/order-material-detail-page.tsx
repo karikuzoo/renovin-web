@@ -27,6 +27,7 @@ import {
   getStatusGroupStyle,
   getStatusLabel,
 } from "@/lib/orders";
+import { ApprovalPanel } from "@/components/approval-panel";
 import { AssignAdminControl } from "@/components/assign-admin-control";
 import {
   calculateRab,
@@ -501,6 +502,17 @@ function OrderDetailView({ orderId }: { orderId: string }) {
         </Link>
       </div>
 
+      {order.status === "correction" && detail.approvals[0]?.decision === "correction" && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 print:hidden">
+          <p className="font-bold mb-1">
+            Super admin meminta koreksi
+            {detail.approvals[0].decided_by_name ? ` (${detail.approvals[0].decided_by_name})` : ""}:
+          </p>
+          <p className="leading-relaxed">{detail.approvals[0].note}</p>
+          <p className="mt-2 text-amber-800">Perbaiki RAB di bawah, lalu klik &quot;Kirim untuk persetujuan&quot; lagi.</p>
+        </div>
+      )}
+
       {!editable && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 print:hidden">
           <Lock className="h-4 w-4 shrink-0 mt-0.5" />
@@ -508,6 +520,7 @@ function OrderDetailView({ orderId }: { orderId: string }) {
             RAB tidak bisa diubah pada status <b>{getStatusLabel(order.status)}</b>.
             {order.status === "sent_to_admin" && " Terima pesanan dulu dari daftar pesanan untuk mulai menyusun RAB."}
             {order.status === "pending_approval" && " RAB sedang menunggu keputusan super admin."}
+            {order.status === "approved" && " RAB sudah disetujui; lakukan konfirmasi final di bawah."}
           </span>
         </div>
       )}
@@ -837,6 +850,21 @@ function OrderDetailView({ orderId }: { orderId: string }) {
           </div>
         </div>
       </div>
+
+      <ApprovalPanel
+        projectId={order.id}
+        status={order.status}
+        role={detail.myRole}
+        approvals={detail.approvals}
+        onDone={(message) => {
+          setToastMessage({ type: "success", text: message });
+          reload();
+        }}
+        onError={(prefix, err) => {
+          showError(prefix, err);
+          reload();
+        }}
+      />
 
       {/* Actions */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-2xs print:hidden">
