@@ -32,6 +32,18 @@ export interface OrderDetail {
   manualItems: RabLineItem[]
   myRole: UserRole | null
   myId: string | null
+  approvals: Approval[]
+}
+
+export type ApprovalDecision = Database['public']['Enums']['approval_decision']
+
+// Riwayat keputusan super admin (kontrak: renovin-backend/docs/contract-persetujuan-rab.md)
+export interface Approval {
+  id: string
+  decision: ApprovalDecision
+  note: string | null
+  decided_at: string
+  decided_by_name: string | null
 }
 
 export interface StaffMember {
@@ -86,7 +98,7 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
   if (!order?.id) return null
   const projectId = order.id
 
-  const [photosRes, rabRes, itemsRes, historyRes, roleRes, userRes] = await Promise.all([
+  const [photosRes, rabRes, itemsRes, historyRes, roleRes, userRes, approvalsRes] = await Promise.all([
     supabase.from('room_photos').select('original_url, processed_url').eq('project_id', projectId)
       .order('created_at', { ascending: true }).limit(1),
     supabase.from('rabs').select('*').eq('project_id', projectId).maybeSingle(),
@@ -96,8 +108,12 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
       .eq('to_status', 'admin_processing').order('changed_at', { ascending: false }).limit(1),
     supabase.rpc('my_role'),
     supabase.auth.getUser(),
+    supabase.from('approvals')
+      .select('id, decision, note, decided_at, decided_by_profile:profiles!approvals_decided_by_fkey(full_name)')
+      .eq('project_id', projectId)
+      .order('decided_at', { ascending: false }),
   ])
-  for (const r of [photosRes, rabRes, itemsRes, historyRes]) if (r.error) throw r.error
+  for (const r of [photosRes, rabRes, itemsRes, historyRes, approvalsRes]) if (r.error) throw r.error
 
   const photo = photosRes.data?.[0]
   const toUrl = async (path: string | null | undefined) =>
@@ -114,6 +130,13 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
     manualItems: items.filter((i) => i.is_manual),
     myRole: roleRes.data ?? null,
     myId: userRes.data.user?.id ?? null,
+    approvals: (approvalsRes.data ?? []).map((a) => ({
+      id: a.id,
+      decision: a.decision,
+      note: a.note,
+      decided_at: a.decided_at,
+      decided_by_name: a.decided_by_profile?.full_name ?? null,
+    })),
   }
 }
 
@@ -264,4 +287,29 @@ export async function assignProject(projectId: string, adminId: string) {
   const supabase = createClient()
   const { error } = await supabase.rpc('assign_project', { p_project_id: projectId, p_admin_id: adminId })
   if (error) throw error
+}
+
+// -----------------------------------------------------------------------------
+// Persetujuan RAB oleh super admin & konfirmasi final
+// -----------------------------------------------------------------------------
+
+export function canDecide(status: ProjectStatus, role: UserRole | null): boolean {
+  return role === 'super_admin' && status === 'pending_approval'
+}
+
+export function canConfirmFinal(status: ProjectStatus, role: UserRole | null): boolean {
+  return (role === 'admin' || role === 'super_admin') && status === 'approved'
+}
+
+// Catatan wajib untuk correction & rejected (dicek juga di backend)
+export async function decideRab(projectId: string, decision: ApprovalDecision, note: string) {
+  const trimmed = note.trim()
+  if (decision !== 'approved' && !trimmed) {
+    throw new Error(decision === 'correction' ? 'Tuliskan apa yang perlu dikoreksi.' : 'Tuliskan alasan penolakan.')
+  }
+  await changeStatus(projectId, decision, trimmed || undefined)
+}
+
+export function confirmFinal(projectId: string) {
+  return changeStatus(projectId, 'confirmed')
 }
