@@ -203,9 +203,6 @@ export function ApprovalPanel({ projectId, status, role, approvals, onDone, onEr
         </div>
       )}
 
-      {status === "confirmed" && (
-        <p className="text-xs text-zinc-600">RAB sudah dikonfirmasi final. Pembuatan laporan PDF menyusul.</p>
-      )}
 
       {/* Riwayat */}
       {approvals.length > 0 && (

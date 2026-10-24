@@ -30,6 +30,7 @@ import {
 import { ApprovalPanel } from "@/components/approval-panel";
 import { AssignAdminControl } from "@/components/assign-admin-control";
 import { useConfirm } from "@/components/confirm-dialog";
+import { ReportPanel } from "@/components/report-panel";
 import {
   calculateRab,
   canAssign,
@@ -876,6 +877,22 @@ function OrderDetailView({ orderId }: { orderId: string }) {
         status={order.status}
         role={detail.myRole}
         approvals={detail.approvals}
+        onDone={(message) => {
+          setToastMessage({ type: "success", text: message });
+          reload();
+        }}
+        onError={(prefix, err) => {
+          showError(prefix, err);
+          reload();
+        }}
+      />
+
+      <ReportPanel
+        projectId={order.id}
+        orderCode={order.code}
+        status={order.status}
+        role={detail.myRole}
+        report={detail.report}
         onDone={(message) => {
           setToastMessage({ type: "success", text: message });
           reload();
