@@ -33,6 +33,14 @@ export interface OrderDetail {
   myRole: UserRole | null
   myId: string | null
   approvals: Approval[]
+  report: ReportInfo | null
+}
+
+// Laporan PDF terbaru (kontrak: renovin-backend/docs/contract-laporan-pdf.md)
+export interface ReportInfo {
+  id: string
+  pdf_url: string
+  generated_at: string
 }
 
 export type ApprovalDecision = Database['public']['Enums']['approval_decision']
@@ -98,7 +106,7 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
   if (!order?.id) return null
   const projectId = order.id
 
-  const [photosRes, rabRes, itemsRes, historyRes, roleRes, userRes, approvalsRes] = await Promise.all([
+  const [photosRes, rabRes, itemsRes, historyRes, roleRes, userRes, approvalsRes, reportRes] = await Promise.all([
     supabase.from('room_photos').select('original_url, processed_url').eq('project_id', projectId)
       .order('created_at', { ascending: true }).limit(1),
     supabase.from('rabs').select('*').eq('project_id', projectId).maybeSingle(),
@@ -112,8 +120,10 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
       .select('id, decision, note, decided_at, decided_by_profile:profiles!approvals_decided_by_fkey(full_name)')
       .eq('project_id', projectId)
       .order('decided_at', { ascending: false }),
+    supabase.from('reports').select('id, pdf_url, generated_at').eq('project_id', projectId)
+      .order('generated_at', { ascending: false }).limit(1).maybeSingle(),
   ])
-  for (const r of [photosRes, rabRes, itemsRes, historyRes, approvalsRes]) if (r.error) throw r.error
+  for (const r of [photosRes, rabRes, itemsRes, historyRes, approvalsRes, reportRes]) if (r.error) throw r.error
 
   const photo = photosRes.data?.[0]
   const toUrl = async (path: string | null | undefined) =>
@@ -130,6 +140,7 @@ export async function fetchOrderDetail(idOrCode: string): Promise<OrderDetail | 
     manualItems: items.filter((i) => i.is_manual),
     myRole: roleRes.data ?? null,
     myId: userRes.data.user?.id ?? null,
+    report: reportRes.data ?? null,
     approvals: (approvalsRes.data ?? []).map((a) => ({
       id: a.id,
       decision: a.decision,
@@ -312,4 +323,39 @@ export async function decideRab(projectId: string, decision: ApprovalDecision, n
 
 export function confirmFinal(projectId: string) {
   return changeStatus(projectId, 'confirmed')
+}
+
+// -----------------------------------------------------------------------------
+// Laporan PDF & selesaikan pesanan
+// -----------------------------------------------------------------------------
+
+export function canManageReport(status: ProjectStatus, role: UserRole | null): boolean {
+  return (role === 'admin' || role === 'super_admin') && ['confirmed', 'report_generated', 'completed'].includes(status)
+}
+
+// Edge function generate-report: buat / buat ulang PDF dari snapshot final
+export async function generateReport(projectId: string): Promise<{ signed_url: string | null }> {
+  const supabase = createClient()
+  const { data, error } = await supabase.functions.invoke('generate-report', { body: { project_id: projectId } })
+  if (error) {
+    // Pesan dari function ada di body respons
+    const ctx = (error as { context?: Response }).context
+    const body = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null
+    throw new Error(body?.error ?? error.message)
+  }
+  return data as { signed_url: string | null }
+}
+
+export async function getReportUrl(path: string, downloadName?: string): Promise<string> {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path // data seed lama memakai URL placeholder
+  const supabase = createClient()
+  const { data, error } = await supabase.storage
+    .from('reports')
+    .createSignedUrl(path, 60 * 60, downloadName ? { download: downloadName } : undefined)
+  if (error || !data) throw new Error('Gagal membuka laporan: ' + (error?.message ?? 'tidak ditemukan'))
+  return data.signedUrl
+}
+
+export function markCompleted(projectId: string) {
+  return changeStatus(projectId, 'completed')
 }
