@@ -32,6 +32,14 @@ interface UserProfile {
   initials: string;
 }
 
+// Judul di bar atas dari segmen URL terakhir; UUID (detail pesanan) diganti teks yang bisa dibaca
+function pageTitle(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean);
+  const last = parts.at(-1) ?? "";
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(last)) return parts.at(-2) === "pesanan" ? "Detail pesanan" : "Detail";
+  return last.replaceAll("-", " ") || "Dashboard";
+}
+
 export default function RuangKerjaLayout({
   children,
 }: {
@@ -134,7 +142,7 @@ export default function RuangKerjaLayout({
     },
     { name: "Katalog Bahan", href: "/workplace/katalog", icon: Package },
     { name: "Klien", href: "/workplace/klien", icon: Users },
-    { name: "Tim pekerja", href: "/workplace/tim", icon: Briefcase },
+    { name: "Tim studio", href: "/workplace/tim", icon: Briefcase },
     {
       name: "Laporan",
       href: "/workplace/laporan",
@@ -293,7 +301,7 @@ export default function RuangKerjaLayout({
       <main className="flex-1 flex flex-col bg-[#F9F8F6] min-w-0 print:bg-white print:min-h-0">
         {/* Header */}
         <header className="flex h-14 lg:h-16 items-center justify-between border-b border-[#E5E0D8] px-4 lg:px-8 bg-[#F4F1ED] sticky top-0 z-30 print:hidden">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {/* Hamburger button - mobile only */}
             <button
               onClick={() => setSidebarOpenedAt(pathname)}
@@ -304,13 +312,9 @@ export default function RuangKerjaLayout({
             <div className="hidden sm:flex items-center text-sm text-zinc-500 font-medium">
               <span>Ruang kerja</span>
               <ChevronRight className="mx-2 h-4 w-4 text-zinc-400" />
-              <span className="text-zinc-900 capitalize">
-                {pathname.split("/").pop()?.replace("-", " ") || "Dashboard"}
-              </span>
+              <span className="text-zinc-900 capitalize">{pageTitle(pathname)}</span>
             </div>
-            <span className="sm:hidden text-sm font-semibold text-zinc-900 capitalize">
-              {pathname.split("/").pop()?.replace("-", " ") || "Dashboard"}
-            </span>
+            <span className="sm:hidden truncate text-sm font-semibold text-zinc-900 capitalize">{pageTitle(pathname)}</span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">

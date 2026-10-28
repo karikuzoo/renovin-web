@@ -309,7 +309,7 @@ export default function KatalogBahan() {
         <button
           onClick={() => setModal({ mode: "create", productId: null, initial: emptyForm(categoryFilter) })}
           disabled={!products}
-          className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E] disabled:opacity-60"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E] disabled:opacity-60"
         >
           <Plus className="h-4 w-4" />
           Tambah bahan
@@ -317,25 +317,25 @@ export default function KatalogBahan() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Total bahan</p>
-          <p className="text-4xl font-bold text-zinc-900">{products ? stats.total : "–"}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{products ? stats.total : "–"}</p>
           <p className="text-xs text-zinc-400">{stats.archived ? `Termasuk ${stats.archived} arsip` : "Cat, furnitur, dan material"}</p>
         </div>
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
+        <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white">
           <p className="text-sm font-medium text-white/80">Bahan terbit</p>
-          <p className="text-4xl font-bold">{products ? stats.published : "–"}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap">{products ? stats.published : "–"}</p>
           <p className="text-xs text-white/70">Dapat dipilih klien dari katalog</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Draft katalog</p>
-          <p className="text-4xl font-bold text-zinc-900">{products ? stats.draft : "–"}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{products ? stats.draft : "–"}</p>
           <p className="text-xs text-zinc-400">Belum ditampilkan kepada klien</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Kategori bahan</p>
-          <p className="text-4xl font-bold text-zinc-900">{products ? stats.categories : "–"}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{products ? stats.categories : "–"}</p>
           <p className="text-xs text-zinc-400">Dari {categories.length} kategori tersedia</p>
         </div>
       </div>
@@ -491,7 +491,7 @@ export default function KatalogBahan() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] [&_th]:whitespace-nowrap text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs font-semibold text-zinc-500">
                   <th className="py-2 pr-4">Bahan</th>

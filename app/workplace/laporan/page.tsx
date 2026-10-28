@@ -84,11 +84,11 @@ export default function Laporan() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 shadow-sm">
+          <button className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 shadow-sm">
             <Calendar className="h-4 w-4" />
             5 Sep – 3 Okt 2026
           </button>
-          <button className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#233A2E]">
+          <button className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#233A2E]">
             <Download className="h-4 w-4" />
             Unduh laporan
           </button>
@@ -96,9 +96,9 @@ export default function Laporan() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1 */}
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white relative overflow-hidden">
+        <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white relative overflow-hidden">
           <div className="flex justify-between items-start z-10 relative">
             <p className="text-sm font-medium text-white/80">
               Nilai seluruh pesanan
@@ -106,12 +106,12 @@ export default function Laporan() {
             <Wallet className="h-4 w-4 text-white/50" />
           </div>
           <div className="z-10 relative mt-2">
-            <p className="text-4xl font-bold mb-1">Rp 485 jt</p>
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap mb-1">Rp 485 jt</p>
             <p className="text-xs text-white/70">6 pesanan studio</p>
           </div>
         </div>
         {/* Card 2 */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32 relative">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 relative">
           <div className="flex justify-between items-start">
             <p className="text-sm font-medium text-zinc-500">
               Pembayaran diterima
@@ -119,14 +119,14 @@ export default function Laporan() {
             <CheckCircle2 className="h-4 w-4 text-zinc-400" />
           </div>
           <div className="mt-2">
-            <p className="text-4xl font-bold text-zinc-900 tracking-tight mb-1">
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900 tracking-tight mb-1">
               Rp 277,5 jt
             </p>
             <p className="text-xs text-zinc-400">57,2% dari nilai pesanan</p>
           </div>
         </div>
         {/* Card 3 */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32 relative">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 relative">
           <div className="flex justify-between items-start">
             <p className="text-sm font-medium text-zinc-500">
               Sisa pembayaran
@@ -134,7 +134,7 @@ export default function Laporan() {
             <Clock className="h-4 w-4 text-zinc-400" />
           </div>
           <div className="mt-2">
-            <p className="text-4xl font-bold text-zinc-900 tracking-tight mb-1">
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900 tracking-tight mb-1">
               Rp 207,5 jt
             </p>
             <p className="text-xs text-zinc-400">
@@ -143,13 +143,13 @@ export default function Laporan() {
           </div>
         </div>
         {/* Card 4 */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32 relative">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 relative">
           <div className="flex justify-between items-start">
             <p className="text-sm font-medium text-zinc-500">Proyek selesai</p>
             <Layers className="h-4 w-4 text-zinc-400" />
           </div>
           <div className="mt-2">
-            <p className="text-4xl font-bold text-zinc-900 mb-1">1 dari 4</p>
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900 mb-1">1 dari 4</p>
             <p className="text-xs text-zinc-400">
               3 aktif · 2 pesanan belum menjadi proyek
             </p>
@@ -260,7 +260,7 @@ export default function Laporan() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-zinc-600">
+              <table className="w-full min-w-[880px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
                 <thead className="border-y border-zinc-100 text-[11px] bg-zinc-50/50 text-zinc-500 font-semibold uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-3 font-medium">Proyek / pesanan</th>

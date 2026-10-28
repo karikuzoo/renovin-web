@@ -251,14 +251,14 @@ export default function Pesanan() {
         <div className="flex gap-2">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 shadow-2xs transition"
+            className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 shadow-2xs transition"
           >
             <Download className="h-4 w-4" />
             Ekspor data
           </button>
           <Link
             href="/workplace/pesanan/baru"
-            className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E] shadow-sm transition"
+            className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E] shadow-sm transition"
           >
             <Plus className="h-4 w-4" />
             Pesanan baru
@@ -267,11 +267,11 @@ export default function Pesanan() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Total pesanan */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Total pesanan</p>
-          <p className="text-4xl font-bold text-zinc-900">
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">
             {isLoading ? <span className="inline-block h-8 w-12 bg-zinc-100 rounded animate-pulse"></span> : counts.all}
           </p>
           <p className="text-xs text-zinc-400">
@@ -280,9 +280,9 @@ export default function Pesanan() {
         </div>
 
         {/* Card 2: Nilai pesanan */}
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white shadow-sm">
+        <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white shadow-sm">
           <p className="text-sm font-medium text-white/80">Nilai pesanan</p>
-          <p className="text-4xl font-bold tracking-tight">
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap tracking-tight">
             {isLoading ? (
               <span className="inline-block h-8 w-24 bg-white/20 rounded animate-pulse"></span>
             ) : (
@@ -295,18 +295,18 @@ export default function Pesanan() {
         </div>
 
         {/* Card 3: Menunggu persetujuan super admin */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Menunggu persetujuan</p>
-          <p className="text-4xl font-bold tracking-tight text-zinc-900">
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap tracking-tight text-zinc-900">
             {isLoading ? "–" : summary?.in_progress_by_status?.pending_approval ?? 0}
           </p>
           <p className="text-xs text-zinc-400">RAB menunggu keputusan super admin</p>
         </div>
 
         {/* Card 4: Pesanan yang belum punya RAB */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Belum ada RAB</p>
-          <p className="text-4xl font-bold tracking-tight text-zinc-900">
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap tracking-tight text-zinc-900">
             {isLoading ? "–" : Math.max(0, (summary?.total_orders ?? 0) - (summary?.valued_orders ?? 0))}
           </p>
           <p className="text-xs text-zinc-400">Termasuk {counts.new} pesanan baru</p>
@@ -323,7 +323,7 @@ export default function Pesanan() {
               Dari permintaan awal hingga serah terima, tanpa detail yang terlewat.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 bg-zinc-50/50">
+          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 bg-zinc-50/50">
             <Calendar className="h-4 w-4 text-zinc-400" />
             {currentDateFormatted}
           </div>
@@ -452,7 +452,7 @@ export default function Pesanan() {
 
         {/* Orders Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-600">
+          <table className="w-full min-w-[1080px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
             <thead className="border-y border-zinc-100 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider bg-[#FAF9F7]/50">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -551,7 +551,7 @@ export default function Pesanan() {
                       </td>
 
                       {/* Code */}
-                      <td className="px-4 py-3.5 font-medium text-zinc-900 font-mono text-xs">
+                      <td className="whitespace-nowrap px-4 py-3.5 font-medium text-zinc-900 font-mono text-xs">
                         {order.code}
                       </td>
 
