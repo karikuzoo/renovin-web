@@ -13,7 +13,7 @@ export default function Dashboard() {
             Selamat pagi, <span className="italic">Atmin.</span>
           </h1>
         </div>
-        <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-600">
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-600">
           <Calendar className="h-4 w-4" />
           3 Okt 2026
         </div>
@@ -30,29 +30,29 @@ export default function Dashboard() {
           </span>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
           {/* Card 1 */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
             <p className="text-sm font-medium text-zinc-500">Total pesanan</p>
-            <p className="text-4xl font-bold text-zinc-900">6</p>
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">6</p>
             <p className="text-xs text-zinc-400">2 pesanan baru menunggu konfirmasi</p>
           </div>
           {/* Card 2 */}
-          <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
+          <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white">
             <p className="text-sm font-medium text-white/80">Proyek dikerjakan</p>
-            <p className="text-4xl font-bold">3</p>
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap">3</p>
             <p className="text-xs text-white/70">1 desain - 1 produksi - 1 instalasi</p>
           </div>
           {/* Card 3 */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
             <p className="text-sm font-medium text-zinc-500">Proyek selesai</p>
-            <p className="text-4xl font-bold text-zinc-900">1</p>
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">1</p>
             <p className="text-xs text-zinc-400">Serah terima pada 1 Oktober</p>
           </div>
           {/* Card 4 */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
             <p className="text-sm font-medium text-zinc-500">Nilai pesanan</p>
-            <p className="text-4xl font-bold tracking-tight text-zinc-900">Rp 485 jt</p>
+            <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap tracking-tight text-zinc-900">Rp 485 jt</p>
             <p className="text-xs text-zinc-400">Total nilai dari 6 pesanan</p>
           </div>
         </div>
@@ -63,16 +63,16 @@ export default function Dashboard() {
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-zinc-900">Proyek yang sedang berjalan</h2>
-            <span className="rounded-full bg-[#E8EDEA] px-2 py-0.5 text-xs font-semibold text-[#2C4A3B]">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-[#E8EDEA] px-2 py-0.5 text-xs font-semibold text-[#2C4A3B]">
               3 aktif
             </span>
           </div>
-          <button className="text-xs font-semibold text-[#2C4A3B] flex items-center gap-1 hover:underline">
+          <button className="shrink-0 whitespace-nowrap text-xs font-semibold text-[#2C4A3B] flex items-center gap-1 hover:underline">
             Lihat semua proyek <ArrowUpRight className="h-3 w-3" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Project 1 */}
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
             <div className="relative h-32 bg-zinc-200">
@@ -244,7 +244,7 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold text-zinc-900">Detail pesanan</h2>
             <p className="text-sm text-zinc-500">Semua pesanan studio, dari permintaan awal hingga serah terima.</p>
           </div>
-          <button className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+          <button className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
             <Download className="h-4 w-4" />
             Ekspor data
           </button>
@@ -280,7 +280,7 @@ export default function Dashboard() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-600">
+          <table className="w-full min-w-[880px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
             <thead className="border-y border-zinc-100 text-xs text-zinc-500 uppercase tracking-wider font-semibold">
               <tr>
                 <th className="px-4 py-3 w-10"><input type="checkbox" className="rounded border-zinc-300" /></th>

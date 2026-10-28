@@ -144,7 +144,7 @@ export default function PenerimaanBaru() {
         <button
           onClick={() => downloadCsv(visible)}
           disabled={visible.length === 0}
-          className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="h-4 w-4" />
           Ekspor daftar
@@ -154,25 +154,25 @@ export default function PenerimaanBaru() {
       {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">Gagal memuat pesanan baru: {error}</div>}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white">
           <p className="text-sm font-medium text-white/80">Menunggu penerimaan</p>
-          <p className="text-4xl font-bold">{isLoading ? "–" : orders.length}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap">{isLoading ? "–" : orders.length}</p>
           <p className="text-xs text-white/70">Seluruh pesanan yang belum diterima admin</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Siap ditinjau</p>
-          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : completeCount}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{isLoading ? "–" : completeCount}</p>
           <p className="text-xs text-zinc-400">Foto & ukuran ruangan lengkap</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Belum ada ukuran</p>
-          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : noMeasureCount}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{isLoading ? "–" : noMeasureCount}</p>
           <p className="text-xs text-zinc-400">Ukuran dilengkapi admin setelah diterima</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Belum ada foto</p>
-          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : noPhotoCount}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{isLoading ? "–" : noPhotoCount}</p>
           <p className="text-xs text-zinc-400">Hubungi klien untuk mengirim foto</p>
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function PenerimaanBaru() {
             <h2 className="text-lg font-bold text-zinc-900">Pesanan masuk</h2>
             <p className="text-sm text-zinc-500">Periksa kontak, foto, luas, dan catatan klien sebelum menerima.</p>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600">
+          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600">
             <Calendar className="h-4 w-4" />
             {formatTanggal(new Date().toISOString())}
           </div>
@@ -236,7 +236,7 @@ export default function PenerimaanBaru() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-600">
+          <table className="w-full min-w-[880px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
             <thead className="border-y border-zinc-100 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3 font-medium">Foto / proyek / luas</th>

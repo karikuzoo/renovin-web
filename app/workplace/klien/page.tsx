@@ -116,7 +116,7 @@ export default function Klien() {
         <button
           onClick={() => downloadClientsCsv(filtered)}
           disabled={filtered.length === 0}
-          className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="h-4 w-4" />
           Ekspor data
@@ -130,25 +130,25 @@ export default function Klien() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Total klien</p>
-          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : clients.length}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{isLoading ? "–" : clients.length}</p>
           <p className="text-xs text-zinc-400">{totalOrders} pesanan dari semua klien</p>
         </div>
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
+        <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white">
           <p className="text-sm font-medium text-white/80">Klien proyek aktif</p>
-          <p className="text-4xl font-bold">{isLoading ? "–" : activeClients.length}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap">{isLoading ? "–" : activeClients.length}</p>
           <p className="text-xs text-white/70 truncate">{namesPreview(activeClients, " · ")}</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Klien baru</p>
-          <p className="text-4xl font-bold text-zinc-900">{isLoading ? "–" : newClients.length}</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{isLoading ? "–" : newClients.length}</p>
           <p className="text-xs text-zinc-400 truncate">{namesPreview(newClients, " & ")}</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Nilai hubungan klien</p>
-          <p className="text-4xl font-bold tracking-tight text-zinc-900">
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap tracking-tight text-zinc-900">
             {isLoading ? "–" : formatRupiahCompact(totalValue)}
           </p>
           <p className="text-xs text-zinc-400">Total nilai {totalOrders} pesanan studio</p>
@@ -198,7 +198,7 @@ export default function Klien() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-zinc-600">
+              <table className="w-full min-w-[880px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
                 <thead className="border-y border-zinc-100 text-[11px] bg-zinc-50/50 text-zinc-500 font-semibold uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-3 font-medium">Klien</th>

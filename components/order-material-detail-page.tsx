@@ -697,7 +697,7 @@ function OrderDetailView({ orderId }: { orderId: string }) {
         </div>
 
         <div className="overflow-x-auto print:overflow-visible">
-          <table className="w-full text-left text-xs">
+          <table className="w-full min-w-[720px] print:min-w-0 [&_th]:whitespace-nowrap text-left text-xs">
             <thead className="bg-[#FAF9F7] border-b border-zinc-100 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider print:border-zinc-200 print:text-[9px]">
               <tr>
                 <th className="py-3 px-6 w-1/4 print:px-3 print:py-2">Bahan / jasa</th>
