@@ -1,405 +1,348 @@
 "use client";
 
-import {
-  Calendar,
-  Plus,
-  Search,
-  ChevronDown,
-  MoreHorizontal,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowUpRight, ChevronDown, Info, Search } from "lucide-react";
+import { ROLE_LABEL, fetchTeam, initials, type StaffRole, type TeamData, type TeamMember } from "@/lib/team";
+import { formatRupiahCompact, formatTanggalWaktu, getStatusLabel } from "@/lib/orders";
 
-const teamMembers = [
-  {
-    id: "NA",
-    name: "Nadia A.",
-    team: "Tim studio",
-    role: "Desainer interior",
-    project: "Rumah Cipete",
-    task: "Penanggung jawab desain",
-    allocation: 80,
-    status: "Ditugaskan",
-    phone: "0812 7100 1001",
-  },
-  {
-    id: "RD",
-    name: "Raka D.",
-    team: "Tim studio",
-    role: "Koordinator produksi",
-    project: "Apartemen Senopati",
-    task: "Penanggung jawab produksi",
-    allocation: 90,
-    status: "Ditugaskan",
-    phone: "0812 7100 1002",
-  },
-  {
-    id: "SP",
-    name: "Sinta P.",
-    team: "Tim studio",
-    role: "Koordinator lapangan",
-    project: "Kafe Kala",
-    task: "Penanggung jawab instalasi",
-    allocation: 90,
-    status: "Ditugaskan",
-    phone: "0812 7100 1003",
-  },
-  {
-    id: "AP",
-    name: "Andi Pratama",
-    team: "Tim studio",
-    role: "Pekerja kayu",
-    project: "Apartemen Senopati",
-    task: "Perakitan kabinet dapur",
-    allocation: 85,
-    status: "Ditugaskan",
-    phone: "0812 7100 1004",
-  },
-  {
-    id: "FH",
-    name: "Fajar Hadi",
-    team: "Tim studio",
-    role: "Spesialis finishing",
-    project: "Apartemen Senopati",
-    task: "Pelapisan akhir furnitur",
-    allocation: 75,
-    status: "Ditugaskan",
-    phone: "0812 7100 1005",
-  },
-  {
-    id: "LS",
-    name: "Luki Saputra",
-    team: "Tim studio",
-    role: "Teknisi listrik",
-    project: "Kafe Kala",
-    task: "Pemasangan lampu bar",
-    allocation: 70,
-    status: "Ditugaskan",
-    phone: "0812 7100 1006",
-  },
-  {
-    id: "DA",
-    name: "Dewi Ananda",
-    team: "Tim studio",
-    role: "Drafter",
-    project: "Belum ditugaskan",
-    task: "Siap untuk proyek baru",
-    allocation: 0,
-    status: "Tersedia",
-    phone: "0812 7100 1007",
-  },
-  {
-    id: "BU",
-    name: "Bagas Utama",
-    team: "Tim studio",
-    role: "Pekerja kayu",
-    project: "Belum ditugaskan",
-    task: "Siap untuk proyek baru",
-    allocation: 0,
-    status: "Tersedia",
-    phone: "0812 7100 1008",
-  },
-];
+type Tab = "all" | "busy" | "free";
 
-export default function TimPekerja() {
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return (err as { message?: string })?.message ?? "Terjadi kesalahan.";
+}
+
+function Avatar({ name, size = "md" }: { name: string | null; size?: "sm" | "md" }) {
+  const cls = size === "sm" ? "h-7 w-7 text-[9px] border-2 border-white" : "h-9 w-9 text-[11px]";
+  return (
+    <div className={`flex shrink-0 items-center justify-center rounded-full bg-[#E8EDEA] font-bold text-[#2C4A3B] ${cls}`}>
+      {initials(name)}
+    </div>
+  );
+}
+
+export default function TimStudio() {
+  const [data, setData] = useState<TeamData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const [tab, setTab] = useState<Tab>("all");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<StaffRole | "">("");
+
+  useEffect(() => {
+    let ignore = false;
+    fetchTeam()
+      .then((d) => {
+        if (ignore) return;
+        setData(d);
+        setLoadError(null);
+      })
+      .catch((err: unknown) => {
+        if (!ignore) setLoadError(errorMessage(err));
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [reloadKey]);
+
+  const members = useMemo(() => data?.members ?? [], [data]);
+
+  const stats = useMemo(() => {
+    const busy = members.filter((m) => m.active.length > 0);
+    const activeTotal = members.reduce((n, m) => n + m.active.length, 0);
+    return {
+      total: members.length,
+      superAdmins: members.filter((m) => m.role === "super_admin").length,
+      busy: busy.length,
+      activeTotal,
+      waitingSuperAdmin: members.reduce((n, m) => n + m.waitingSuperAdmin, 0),
+      maxActive: Math.max(1, ...members.map((m) => m.active.length)),
+      lastActivity: members.map((m) => m.lastActivityAt ?? "").sort().at(-1) || null,
+    };
+  }, [members]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return members
+      .filter(
+        (m) =>
+          (tab === "all" || (tab === "busy" ? m.active.length > 0 : m.active.length === 0)) &&
+          (!roleFilter || m.role === roleFilter) &&
+          (!q || [m.full_name, m.email].some((v) => v?.toLowerCase().includes(q))),
+      )
+      .sort((a, b) => b.active.length - a.active.length || (a.full_name ?? "").localeCompare(b.full_name ?? ""));
+  }, [members, tab, roleFilter, search]);
+
+  // Pesanan aktif dikelompokkan per penanggung jawab, yang paling sibuk lebih dulu
+  const busyMembers = useMemo(
+    () => members.filter((m) => m.active.length > 0).sort((a, b) => b.active.length - a.active.length),
+    [members],
+  );
+
+  const tabs: { key: Tab; label: string; count: number }[] = [
+    { key: "all", label: "Semua", count: members.length },
+    { key: "busy", label: "Menangani pesanan", count: stats.busy },
+    { key: "free", label: "Tanpa pesanan aktif", count: members.length - stats.busy },
+  ];
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-zinc-900 mb-2">Tim pekerja</h1>
-          <p className="text-sm text-zinc-500">
-            Tim yang tepat untuk setiap tahap. Kelola peran, penugasan, dan
-            ketersediaan.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
-            <Calendar className="h-4 w-4" />
-            Atur penugasan
-          </button>
-          <button className="flex items-center gap-2 rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#233A2E]">
-            <Plus className="h-4 w-4" />
-            Tambah anggota
-          </button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-zinc-900 mb-2">Tim studio</h1>
+        <p className="text-sm text-zinc-500">Admin dan super admin Renovin, beserta pesanan yang sedang mereka tangani.</p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
           <p className="text-sm font-medium text-zinc-500">Anggota tim</p>
-          <p className="text-4xl font-bold text-zinc-900">8</p>
-          <p className="text-xs text-zinc-400">Desain, produksi, dan lapangan</p>
-        </div>
-        <div className="rounded-xl bg-[#2C4A3B] p-5 flex flex-col justify-between h-32 text-white">
-          <p className="text-sm font-medium text-white/80">Sedang ditugaskan</p>
-          <p className="text-4xl font-bold">6</p>
-          <p className="text-xs text-white/70">
-            Tersebar di 3 proyek aktif
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{data ? stats.total : "–"}</p>
+          <p className="text-xs text-zinc-400">
+            {stats.superAdmins} super admin · {stats.total - stats.superAdmins} admin
           </p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <p className="text-sm font-medium text-zinc-500">Siap ditugaskan</p>
-          <p className="text-4xl font-bold text-zinc-900">2</p>
-          <p className="text-xs text-zinc-400">1 drafter · 1 pekerja kayu</p>
+        <div className="rounded-xl bg-[#2C4A3B] p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32 text-white">
+          <p className="text-sm font-medium text-white/80">Pesanan dikerjakan</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap">{data ? stats.activeTotal : "–"}</p>
+          <p className="text-xs text-white/70">Ditangani {stats.busy} anggota</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col justify-between h-32">
-          <p className="text-sm font-medium text-zinc-500">Penanggung jawab</p>
-          <p className="text-4xl font-bold text-zinc-900">3</p>
-          <p className="text-xs text-zinc-400">Nadia A. · Raka D. · Sinta P.</p>
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
+          <p className="text-sm font-medium text-zinc-500">Menunggu super admin</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{data ? stats.waitingSuperAdmin : "–"}</p>
+          <p className="text-xs text-zinc-400">RAB menunggu persetujuan</p>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col justify-between gap-2 min-h-28 sm:min-h-32">
+          <p className="text-sm font-medium text-zinc-500">Pesanan baru</p>
+          <p className="text-2xl sm:text-4xl font-bold leading-tight whitespace-nowrap text-zinc-900">{data ? data.newOrders : "–"}</p>
+          <p className="text-xs text-zinc-400">Belum diterima admin mana pun</p>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="flex items-start gap-3 rounded-xl bg-[#E8EDEA] p-4 border border-[#2C4A3B]/10">
+        <Info className="h-5 w-5 text-[#2C4A3B] shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-zinc-900 mb-0.5">Akun tim dikelola tim IT</p>
+          <p className="text-sm text-zinc-600">
+            Untuk menambah anggota, mengganti email, atau menonaktifkan akun, hubungi tim IT. Penanggung jawab pesanan
+            dipindah dari halaman detail pesanan (tombol <span className="font-semibold">Ganti</span>).
+          </p>
         </div>
       </div>
 
       {/* Table Section */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900">
-              Anggota & penugasan
-            </h2>
-            <p className="text-sm text-zinc-500">
-              Ketersediaan berdasarkan alokasi pekerjaan minggu ini.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 rounded-md bg-[#E8EDEA] px-3 py-1.5 text-xs font-semibold text-[#2C4A3B]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#2C4A3B]"></span>
-            3-9 Oktober 2026
-          </div>
+        <div className="mb-6">
+          <h2 className="text-lg font-bold text-zinc-900">Anggota & beban kerja</h2>
+          <p className="text-sm text-zinc-500">Jumlah pesanan yang sedang dikerjakan setiap penanggung jawab.</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div className="flex bg-zinc-100 rounded-md p-0.5 w-fit">
-            <button className="px-3 py-1.5 text-xs font-semibold rounded bg-white shadow-sm text-zinc-900 flex items-center gap-1.5">
-              Semua <span className="text-zinc-400 font-normal">8</span>
-            </button>
-            <button className="px-3 py-1.5 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-              Ditugaskan <span className="text-zinc-400 font-normal">6</span>
-            </button>
-            <button className="px-3 py-1.5 text-xs font-semibold rounded text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-              Tersedia <span className="text-zinc-400 font-normal">2</span>
-            </button>
+          <div className="flex flex-wrap bg-zinc-100 rounded-md p-0.5 w-fit">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded flex items-center gap-1.5 ${
+                  tab === t.key ? "bg-white shadow-sm text-zinc-900" : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                {t.label} <span className="text-zinc-400 font-normal">{t.count}</span>
+              </button>
+            ))}
           </div>
 
           <div className="flex gap-2">
-            <div className="relative">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Cari nama atau keahlian"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari nama atau email"
                 className="h-9 w-full sm:w-64 rounded-md border border-zinc-200 pl-9 pr-3 text-xs outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B] placeholder:text-zinc-400"
               />
             </div>
-            <button className="flex h-9 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
-              Semua peran <ChevronDown className="h-4 w-4" />
-            </button>
+            <div className="relative">
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value as StaffRole | "")}
+                className="h-9 appearance-none rounded-md border border-zinc-200 bg-white pl-3 pr-8 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-50 focus:border-[#2C4A3B]"
+              >
+                <option value="">Semua peran</option>
+                <option value="super_admin">Super Admin</option>
+                <option value="admin">Admin</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-600">
-            <thead className="border-y border-zinc-100 text-[11px] bg-zinc-50/50 text-zinc-500 font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3 font-medium">Anggota</th>
-                <th className="px-4 py-3 font-medium">Peran</th>
-                <th className="px-4 py-3 font-medium">Proyek & penugasan</th>
-                <th className="px-4 py-3 font-medium">Alokasi</th>
-                <th className="px-4 py-3 font-medium">Ketersediaan</th>
-                <th className="px-4 py-3 font-medium">Kontak</th>
-                <th className="px-4 py-3 text-right"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {teamMembers.map((member, index) => (
-                <tr key={index} className="hover:bg-zinc-50/50">
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8EDEA] text-[11px] font-bold text-[#2C4A3B]">
-                        {member.id}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-zinc-900 text-xs">
-                          {member.name}
-                        </p>
-                        <p className="text-[10px] text-zinc-400">
-                          {member.team}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <p className="text-xs font-medium text-zinc-700">
-                      {member.role}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4">
-                    <p className="font-semibold text-zinc-900 text-xs mb-0.5">
-                      {member.project}
-                    </p>
-                    <p className="text-[10px] text-zinc-500">{member.task}</p>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-col gap-1 w-24">
-                      <span className="text-[10px] font-semibold text-zinc-600">
-                        {member.allocation}%
-                      </span>
-                      <div className="h-1 w-full bg-zinc-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            member.allocation > 0 ? "bg-[#2C4A3B]" : "bg-transparent"
-                          }`}
-                          style={{ width: `${member.allocation}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold ${
-                        member.status === "Ditugaskan"
-                          ? "bg-[#F4F1ED] text-zinc-600"
-                          : "bg-green-100/50 text-green-700"
-                      }`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          member.status === "Ditugaskan"
-                            ? "bg-red-500"
-                            : "bg-green-500"
-                        }`}
-                      ></span>
-                      {member.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-xs font-medium text-zinc-700">
-                    {member.phone}
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <button className="text-zinc-400 hover:text-zinc-600">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  </td>
+        {loadError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            Gagal memuat tim: {loadError}{" "}
+            <button onClick={() => setReloadKey((k) => k + 1)} className="font-semibold underline">
+              Coba lagi
+            </button>
+          </div>
+        ) : !data ? (
+          <p className="py-12 text-center text-sm text-zinc-500">Memuat tim…</p>
+        ) : filtered.length === 0 ? (
+          <p className="py-12 text-center text-sm text-zinc-500">Tidak ada anggota yang cocok dengan filter.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[880px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
+              <thead className="border-y border-zinc-100 text-[11px] bg-zinc-50/50 text-zinc-500 font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Anggota</th>
+                  <th className="px-4 py-3 font-medium">Peran</th>
+                  <th className="px-4 py-3 font-medium">Pesanan dikerjakan</th>
+                  <th className="px-4 py-3 font-medium">Beban</th>
+                  <th className="px-4 py-3 font-medium">Selesai</th>
+                  <th className="px-4 py-3 font-medium">Terakhir aktif</th>
+                  <th className="px-4 py-3 font-medium">Kontak</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-2 p-4 border-t border-zinc-100">
-          <p className="text-[11px] text-zinc-500">
-            Menampilkan 1–8 dari 8 anggota · 2 anggota tersedia untuk proyek baru
-          </p>
-          <div className="flex items-center gap-1">
-            <button className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2C4A3B] text-xs font-semibold text-white">
-              1
-            </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filtered.map((m) => (
+                  <MemberRow key={m.id} member={m} maxActive={stats.maxActive} />
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
+
+        {data && (
+          <div className="mt-2 p-4 border-t border-zinc-100">
+            <p className="text-[11px] text-zinc-500">
+              Menampilkan {filtered.length} dari {members.length} anggota · {members.length - stats.busy} tanpa pesanan aktif
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Projects Assignment Section */}
-      <div>
-        <h2 className="text-lg font-bold text-zinc-900 mb-4">
-          Penugasan per proyek
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Project 1 */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col">
-            <h3 className="font-bold text-zinc-900 text-sm mb-1">
-              Rumah Cipete
-            </h3>
-            <p className="text-[11px] text-zinc-500 mb-6">
-              Pengembangan desain · Target 18 Okt
-            </p>
-
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex -space-x-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E8EDEA] text-[9px] font-bold text-[#2C4A3B]">
-                  NA
+      {/* Per penanggung jawab */}
+      {data && (busyMembers.length > 0 || data.activeUnassigned.length > 0) && (
+        <div>
+          <h2 className="text-lg font-bold text-zinc-900 mb-4">Pesanan aktif per penanggung jawab</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {busyMembers.map((m) => (
+              <div key={m.id} className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col">
+                <div className="flex items-center gap-3 mb-4">
+                  <Avatar name={m.full_name} />
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-zinc-900 text-sm truncate">{m.full_name ?? m.email}</h3>
+                    <p className="text-[11px] text-zinc-500">
+                      {m.active.length} pesanan · {ROLE_LABEL[m.role]}
+                    </p>
+                  </div>
                 </div>
+                <ul className="space-y-2">
+                  {m.active.slice(0, 4).map((o) => (
+                    <li key={o.id}>
+                      <Link
+                        href={`/workplace/pesanan/${o.id}`}
+                        className="group flex items-start justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-zinc-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-zinc-900 truncate group-hover:text-[#2C4A3B]">{o.title}</p>
+                          <p className="text-[10px] text-zinc-500">
+                            {o.code} · {getStatusLabel(o.status)}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] font-semibold text-zinc-500">
+                          {o.order_value === null ? "RAB belum" : formatRupiahCompact(o.order_value)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {m.active.length > 4 && <p className="mt-2 text-[10px] text-zinc-400">+{m.active.length - 4} pesanan lainnya</p>}
               </div>
-              <span className="text-[11px] text-zinc-500">1 anggota</span>
-            </div>
+            ))}
 
-            <div className="mt-auto border-t border-zinc-100 pt-3">
-              <p className="text-[10px] text-zinc-500">
-                Penanggung jawab · <span className="font-semibold text-zinc-700">Nadia A.</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Project 2 */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col">
-            <h3 className="font-bold text-zinc-900 text-sm mb-1">
-              Apartemen Senopati
-            </h3>
-            <p className="text-[11px] text-zinc-500 mb-6">
-              Produksi furnitur · Target 12 Okt
-            </p>
-
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex -space-x-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E8EDEA] text-[9px] font-bold text-[#2C4A3B] z-30">
-                  RD
-                </div>
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E8EDEA] text-[9px] font-bold text-[#2C4A3B] z-20">
-                  AP
-                </div>
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E8EDEA] text-[9px] font-bold text-[#2C4A3B] z-10">
-                  FH
-                </div>
+            {data.activeUnassigned.length > 0 && (
+              <div className="rounded-xl border border-dashed border-orange-300 bg-orange-50/40 p-5 flex flex-col">
+                <h3 className="font-bold text-zinc-900 text-sm mb-1">Tanpa penanggung jawab</h3>
+                <p className="text-[11px] text-zinc-500 mb-4">Pesanan dikerjakan yang belum punya admin. Tetapkan dari detail pesanan.</p>
+                <ul className="space-y-2">
+                  {data.activeUnassigned.map((o) => (
+                    <li key={o.id}>
+                      <Link href={`/workplace/pesanan/${o.id}`} className="text-xs font-semibold text-zinc-900 hover:text-[#2C4A3B] flex items-center gap-1">
+                        {o.code} · {o.title} <ArrowUpRight className="h-3 w-3" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <span className="text-[11px] text-zinc-500">3 anggota</span>
-            </div>
-
-            <div className="mt-auto border-t border-zinc-100 pt-3">
-              <p className="text-[10px] text-zinc-500">
-                Penanggung jawab · <span className="font-semibold text-zinc-700">Raka D.</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Project 3 */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col">
-            <h3 className="font-bold text-zinc-900 text-sm mb-1">Kafe Kala</h3>
-            <p className="text-[11px] text-zinc-500 mb-6">
-              Instalasi di lokasi · Target 6 Okt
-            </p>
-
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex -space-x-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E8EDEA] text-[9px] font-bold text-[#2C4A3B] z-20">
-                  SP
-                </div>
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#E8EDEA] text-[9px] font-bold text-[#2C4A3B] z-10">
-                  LS
-                </div>
-              </div>
-              <span className="text-[11px] text-zinc-500">2 anggota</span>
-            </div>
-
-            <div className="mt-auto border-t border-zinc-100 pt-3">
-              <p className="text-[10px] text-zinc-500">
-                Penanggung jawab · <span className="font-semibold text-zinc-700">Sinta P.</span>
-              </p>
-            </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Footer */}
       <div className="flex items-center justify-between text-xs text-zinc-400 pt-4 border-t border-zinc-200/50">
         <p>Renovin. · Ruang kerja studio interior</p>
-        <p>Terakhir diperbarui 3 Okt 2026, 09.41 WIB</p>
+        <p>Aktivitas terakhir {stats.lastActivity ? formatTanggalWaktu(stats.lastActivity) : "—"}</p>
       </div>
     </div>
+  );
+}
+
+function MemberRow({ member: m, maxActive }: { member: TeamMember; maxActive: number }) {
+  const busy = m.active.length > 0;
+  return (
+    <tr className="hover:bg-zinc-50/50">
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <Avatar name={m.full_name} />
+          <div className="min-w-0">
+            <p className="font-semibold text-zinc-900 text-xs">{m.full_name ?? "—"}</p>
+            <p className="text-[10px] text-zinc-400 truncate">{m.email ?? "—"}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4">
+        <span
+          className={`rounded-md px-2 py-1 text-[10px] font-bold ${
+            m.role === "super_admin" ? "bg-[#2C4A3B] text-white" : "bg-[#F4F1ED] text-zinc-700"
+          }`}
+        >
+          {ROLE_LABEL[m.role]}
+        </span>
+      </td>
+      <td className="px-4 py-4 min-w-[200px]">
+        {busy ? (
+          <>
+            <Link href={`/workplace/pesanan/${m.active[0].id}`} className="font-semibold text-zinc-900 text-xs mb-0.5 hover:text-[#2C4A3B] block truncate">
+              {m.active[0].title}
+            </Link>
+            <p className="text-[10px] text-zinc-500">
+              {m.active.length > 1 ? `+${m.active.length - 1} pesanan lain · ` : ""}
+              {m.needsAction} perlu tindakan{m.waitingSuperAdmin ? ` · ${m.waitingSuperAdmin} menunggu super admin` : ""}
+            </p>
+          </>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-green-100/50 px-2 py-1 text-[10px] font-bold text-green-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+            Siap menerima pesanan
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-4">
+        <div className="flex flex-col gap-1 w-24">
+          <span className="text-[10px] font-semibold text-zinc-600">{m.active.length} aktif</span>
+          <div className="h-1 w-full bg-zinc-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-[#2C4A3B]" style={{ width: `${(m.active.length / maxActive) * 100}%` }} />
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-xs font-medium text-zinc-700">{m.completed}</td>
+      <td className="px-4 py-4 text-[11px] text-zinc-500 whitespace-nowrap">{m.lastActivityAt ? formatTanggalWaktu(m.lastActivityAt) : "—"}</td>
+      <td className="px-4 py-4 text-xs font-medium text-zinc-700 whitespace-nowrap">{m.phone ?? "—"}</td>
+    </tr>
   );
 }
