@@ -1,20 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 import { getStatusLabel } from '@/lib/orders'
+import { rangeBounds, type DateRange } from '@/lib/date-range'
 import type { AdminOrder, OrderStatusGroup } from '@/types/admin-orders'
 
 // Data halaman Laporan: admin_orders + tanggal selesai dari project_status_history.
 // Pembayaran belum ada di database (menunggu keputusan tim: DP / termin / progress).
-
-export type PeriodKey = '30d' | 'this_month' | 'last_month' | '3m' | 'this_year' | 'all'
-
-export const PERIOD_LABEL: Record<PeriodKey, string> = {
-  '30d': '30 hari terakhir',
-  this_month: 'Bulan ini',
-  last_month: 'Bulan lalu',
-  '3m': '3 bulan terakhir',
-  this_year: 'Tahun ini',
-  all: 'Semua waktu',
-}
 
 export interface ReportOrder extends AdminOrder {
   completed_at: string | null
@@ -23,31 +13,18 @@ export interface ReportOrder extends AdminOrder {
 const DAY = 24 * 60 * 60 * 1000
 const WIB_OFFSET = 7 * 60 * 60 * 1000
 
-// Awal hari/bulan/tahun di WIB, dikembalikan sebagai Date (UTC)
+// Awal bulan di WIB, dikembalikan sebagai Date (UTC)
 function wibParts(d: Date) {
   const w = new Date(d.getTime() + WIB_OFFSET)
-  return { y: w.getUTCFullYear(), m: w.getUTCMonth(), day: w.getUTCDate() }
+  return { y: w.getUTCFullYear(), m: w.getUTCMonth() }
 }
 const wibDate = (y: number, m: number, day = 1) => new Date(Date.UTC(y, m, day) - WIB_OFFSET)
 
-// Rentang [from, to) untuk periode; null = tanpa batas
-export function periodRange(key: PeriodKey, now = new Date()): { from: Date | null; to: Date | null } {
-  const { y, m, day } = wibParts(now)
-  const tomorrow = wibDate(y, m, day + 1)
-  switch (key) {
-    case '30d':
-      return { from: new Date(tomorrow.getTime() - 30 * DAY), to: tomorrow }
-    case 'this_month':
-      return { from: wibDate(y, m), to: wibDate(y, m + 1) }
-    case 'last_month':
-      return { from: wibDate(y, m - 1), to: wibDate(y, m) }
-    case '3m':
-      return { from: wibDate(y, m - 2), to: wibDate(y, m + 1) }
-    case 'this_year':
-      return { from: wibDate(y, 0), to: wibDate(y + 1, 0) }
-    case 'all':
-      return { from: null, to: null }
-  }
+// Rentang tanggal -> [from, to) sebagai Date; null = tanpa batas
+function rangeDates(range: DateRange | null): { from: Date | null; to: Date | null } {
+  if (!range) return { from: null, to: null }
+  const { fromIso, toIso } = rangeBounds(range)
+  return { from: new Date(fromIso), to: new Date(toIso) }
 }
 
 export async function fetchReportOrders(): Promise<ReportOrder[]> {
@@ -76,8 +53,8 @@ export async function fetchReportOrders(): Promise<ReportOrder[]> {
   }))
 }
 
-export function inPeriod(orders: ReportOrder[], key: PeriodKey) {
-  const { from, to } = periodRange(key)
+export function inPeriod(orders: ReportOrder[], range: DateRange | null) {
+  const { from, to } = rangeDates(range)
   return orders.filter((o) => {
     const t = new Date(o.submitted_at).getTime()
     return (!from || t >= from.getTime()) && (!to || t < to.getTime())
@@ -94,16 +71,18 @@ const monthFmt = new Intl.DateTimeFormat('id-ID', { month: 'short', year: '2-dig
 const dayFmt = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })
 
 // Nilai pesanan per minggu (periode ≤ ~2 bulan) atau per bulan. Pesanan ditolak tidak dihitung.
-export function chartBuckets(orders: ReportOrder[], key: PeriodKey): { unit: 'minggu' | 'bulan'; buckets: ChartBucket[] } {
+export function chartBuckets(orders: ReportOrder[], range: DateRange | null): { unit: 'minggu' | 'bulan'; buckets: ChartBucket[] } {
   const valid = orders.filter((o) => o.status_group !== 'rejected')
-  let { from, to } = periodRange(key)
+  let { from, to } = rangeDates(range)
   if (!from) {
     const first = valid.map((o) => o.submitted_at).sort()[0]
     if (!first) return { unit: 'bulan', buckets: [] }
     const p = wibParts(new Date(first))
     from = wibDate(p.y, p.m)
   }
-  to = to ?? new Date()
+  // Periode yang belum lewat (mis. "Tahun ini"): grafik berhenti di hari ini
+  const now = new Date()
+  to = !to || to > now ? new Date(Math.max(now.getTime(), from.getTime() + DAY)) : to
   const weekly = to.getTime() - from.getTime() <= 62 * DAY
 
   const buckets: (ChartBucket & { start: number; end: number })[] = []

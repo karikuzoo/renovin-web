@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { DateRangePicker } from "@/components/date-range-picker";
+import { PRESETS, type DateRange } from "@/lib/date-range";
 import Link from "next/link";
 import {
   Download,
@@ -8,7 +10,6 @@ import {
   Search,
   ArrowUpRight,
   ArrowDown,
-  Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -51,6 +52,7 @@ export default function Pesanan() {
   // Kata kunci yang benar-benar dikirim ke server, ±300 ms setelah berhenti mengetik
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +84,7 @@ export default function Pesanan() {
           search: debouncedSearch,
           page,
           pageSize: PAGE_SIZE,
+          dateRange,
         });
 
         if (!ignore) {
@@ -108,7 +111,7 @@ export default function Pesanan() {
     return () => {
       ignore = true;
     };
-  }, [activeTab, debouncedSearch, page, reloadTrigger]);
+  }, [activeTab, debouncedSearch, page, dateRange, reloadTrigger]);
 
   // Auto clear toast after 4 seconds
   useEffect(() => {
@@ -201,18 +204,6 @@ export default function Pesanan() {
     return orders.filter((o) => o.status === "sent_to_admin" || o.status_group === "new").slice(0, 3);
   }, [orders]);
 
-  // Current date formatted in Indonesian
-  const currentDateFormatted = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(new Date());
-    } catch {
-      return "Hari ini";
-    }
-  }, []);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -316,17 +307,24 @@ export default function Pesanan() {
       {/* Orders Table Container */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs">
         {/* Table Title Bar */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
             <h2 className="text-lg font-bold text-zinc-900">Semua pesanan</h2>
             <p className="text-sm text-zinc-500">
               Dari permintaan awal hingga serah terima, tanpa detail yang terlewat.
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 bg-zinc-50/50">
-            <Calendar className="h-4 w-4 text-zinc-400" />
-            {currentDateFormatted}
-          </div>
+          {/* Filter tanggal pesanan masuk */}
+          <DateRangePicker
+            value={dateRange}
+            onChange={(r) => {
+              setDateRange(r);
+              setPage(0);
+            }}
+            presets={[PRESETS.today, PRESETS["7d"], PRESETS["30d"], PRESETS.this_month, PRESETS.last_month]}
+            allowAll="Semua tanggal"
+            className="w-full shrink-0 sm:w-auto"
+          />
         </div>
 
         {/* Error Banner if any */}
