@@ -452,7 +452,7 @@ export default function Pesanan() {
 
         {/* Orders Table */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
+          <table className="w-full min-w-[980px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
             <thead className="border-y border-zinc-100 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider bg-[#FAF9F7]/50">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -468,7 +468,7 @@ export default function Pesanan() {
                 </th>
                 <th className="px-4 py-3 font-medium">Nilai pesanan</th>
                 <th className="px-4 py-3 font-medium">Status proyek</th>
-                <th className="px-4 py-3 font-medium">Pembayaran</th>
+                {/* Kolom Pembayaran disembunyikan sampai aturan pembayaran (DP/termin) diputuskan tim */}
                 <th className="px-4 py-3 text-right">Tindakan</th>
               </tr>
             </thead>
@@ -500,9 +500,6 @@ export default function Pesanan() {
                     <td className="px-4 py-4">
                       <div className="h-5 w-24 bg-zinc-100 rounded-full"></div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="h-4 w-16 bg-zinc-100 rounded"></div>
-                    </td>
                     <td className="px-4 py-4 text-right">
                       <div className="h-4 w-6 bg-zinc-100 rounded ml-auto"></div>
                     </td>
@@ -511,7 +508,7 @@ export default function Pesanan() {
               ) : orders.length === 0 ? (
                 // Empty state
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="max-w-sm mx-auto flex flex-col items-center justify-center">
                       <div className="h-12 w-12 rounded-full bg-[#E8EDEA] flex items-center justify-center text-[#2C4A3B] mb-3">
                         <Inbox className="h-6 w-6" />
@@ -597,19 +594,6 @@ export default function Pesanan() {
                           <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`}></span>
                           {getStatusLabel(order.status)}
                         </span>
-                      </td>
-
-                      {/* Payment (Simulated/Estimated based on status) */}
-                      <td className="px-4 py-3.5 text-xs font-medium">
-                        {order.status === "completed" ? (
-                          <span className="text-zinc-600 flex items-center gap-1.5">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Lunas
-                          </span>
-                        ) : order.status_group === "new" ? (
-                          <span className="text-red-600">Belum bayar</span>
-                        ) : (
-                          <span className="text-zinc-600">DP 50%</span>
-                        )}
                       </td>
 
                       {/* Actions */}
