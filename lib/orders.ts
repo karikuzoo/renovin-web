@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { rangeBounds, type DateRange } from '@/lib/date-range'
 import type { AdminOrder, OrderStatusGroup } from '@/types/admin-orders'
 
 const DEFAULT_PAGE_SIZE = 10
@@ -115,6 +116,7 @@ export interface FetchOrdersParams {
   search?: string
   page?: number // 0-based
   pageSize?: number
+  dateRange?: DateRange | null // filter tanggal masuk (WIB), null = semua
 }
 
 export interface FetchOrdersResult {
@@ -130,6 +132,7 @@ export async function fetchOrders({
   search = '',
   page = 0,
   pageSize = DEFAULT_PAGE_SIZE,
+  dateRange = null,
 }: FetchOrdersParams = {}): Promise<FetchOrdersResult> {
   const supabase = createClient()
 
@@ -140,6 +143,11 @@ export async function fetchOrders({
 
   if (statusGroup) {
     query = query.eq('status_group', statusGroup)
+  }
+
+  const bounds = dateRange ? rangeBounds(dateRange) : null
+  if (bounds) {
+    query = query.gte('submitted_at', bounds.fromIso).lt('submitted_at', bounds.toIso)
   }
 
   // Karakter , ( ) "  % * punya arti khusus di filter .or() PostgREST -> dibuang.
@@ -158,8 +166,8 @@ export async function fetchOrders({
   const orders = (data ?? []) as AdminOrder[]
 
   // 2. Jumlah per tab + total nilai: satu panggilan dashboard_summary
-  //    (dihitung dari admin_orders, tanpa filter pencarian)
-  const summary = await fetchDashboardSummary()
+  //    (dihitung dari admin_orders, ikut filter tanggal, tanpa filter pencarian)
+  const summary = await fetchDashboardSummary(bounds)
   const counts: Record<OrderStatusGroup, number> = {
     new: summary?.new_orders ?? 0,
     in_progress: summary?.in_progress_orders ?? 0,
@@ -191,10 +199,14 @@ export interface DashboardSummaryData {
   generated_at: string
 }
 
-export async function fetchDashboardSummary(): Promise<DashboardSummaryData | null> {
+export async function fetchDashboardSummary(
+  bounds: { fromIso: string; toIso: string } | null = null,
+): Promise<DashboardSummaryData | null> {
   const supabase = createClient()
   try {
-    const { data, error } = await supabase.rpc('dashboard_summary').single()
+    const { data, error } = await supabase
+      .rpc('dashboard_summary', bounds ? { p_from: bounds.fromIso, p_to: bounds.toIso } : {})
+      .single()
     if (error) {
       console.warn('dashboard_summary RPC error:', error.message)
       return null

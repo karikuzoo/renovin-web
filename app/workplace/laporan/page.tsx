@@ -2,17 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Layers, Receipt, Wallet, Inbox } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Download, Layers, Receipt, Wallet, Inbox } from "lucide-react";
 import {
   GROUP_ORDER,
-  PERIOD_LABEL,
   chartBuckets,
   downloadReportCsv,
   fetchReportOrders,
   inPeriod,
-  type PeriodKey,
   type ReportOrder,
 } from "@/lib/reports";
+import { DateRangePicker } from "@/components/date-range-picker";
+import { PRESETS, formatRange, type DateRange } from "@/lib/date-range";
 import {
   formatRupiah,
   formatRupiahCompact,
@@ -23,6 +23,8 @@ import {
 } from "@/lib/orders";
 
 const PAGE_SIZE = 10;
+
+const REPORT_PRESETS = [PRESETS["30d"], PRESETS.this_month, PRESETS.last_month, PRESETS["3m"], PRESETS.this_year];
 
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -35,7 +37,7 @@ export default function Laporan() {
   const [orders, setOrders] = useState<ReportOrder[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [period, setPeriod] = useState<PeriodKey>("3m");
+  const [range, setRange] = useState<DateRange | null>(() => PRESETS["3m"].range());
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function Laporan() {
     };
   }, [reloadKey]);
 
-  const periodOrders = useMemo(() => (orders ? inPeriod(orders, period) : []), [orders, period]);
+  const periodOrders = useMemo(() => (orders ? inPeriod(orders, range) : []), [orders, range]);
   // Pesanan ditolak tidak dihitung ke nilai, sama seperti dashboard_summary
   const counted = useMemo(() => periodOrders.filter((o) => o.status_group !== "rejected"), [periodOrders]);
   const valued = counted.filter((o) => o.order_value !== null);
@@ -62,8 +64,8 @@ export default function Laporan() {
   const done = counted.filter((o) => o.status_group === "done");
 
   const { unit, buckets } = useMemo(
-    () => (orders ? chartBuckets(periodOrders, period) : { unit: "bulan" as const, buckets: [] }),
-    [orders, periodOrders, period],
+    () => (orders ? chartBuckets(periodOrders, range) : { unit: "bulan" as const, buckets: [] }),
+    [orders, periodOrders, range],
   );
   const maxBucket = Math.max(1, ...buckets.map((b) => b.value));
 
@@ -99,26 +101,18 @@ export default function Laporan() {
           <p className="text-sm text-zinc-500">Gambaran nilai dan perkembangan pesanan studio, berdasarkan tanggal pesanan masuk.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-            <select
-              value={period}
-              onChange={(e) => {
-                setPeriod(e.target.value as PeriodKey);
-                setPage(1);
-              }}
-              className="h-9 min-w-[200px] appearance-none rounded-md border border-zinc-200 bg-white pl-9 pr-9 text-sm font-semibold text-zinc-700 outline-none hover:bg-zinc-50 focus:border-[#2C4A3B]"
-            >
-              {(Object.keys(PERIOD_LABEL) as PeriodKey[]).map((k) => (
-                <option key={k} value={k}>
-                  {PERIOD_LABEL[k]}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-          </div>
+          <DateRangePicker
+            value={range}
+            onChange={(r) => {
+              setRange(r);
+              setPage(1);
+            }}
+            presets={REPORT_PRESETS}
+            allowAll="Semua waktu"
+            className="w-full sm:w-auto"
+          />
           <button
-            onClick={() => downloadReportCsv(periodOrders, PERIOD_LABEL[period])}
+            onClick={() => downloadReportCsv(periodOrders, range ? `${range.from}_${range.to}` : "semua")}
             disabled={!orders || periodOrders.length === 0}
             className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-[#2C4A3B] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#233A2E] disabled:opacity-50"
           >
@@ -230,7 +224,7 @@ export default function Laporan() {
             <div className="p-6 flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-zinc-900 mb-1">Rincian per pesanan</h3>
-                <p className="text-xs text-zinc-500">{PERIOD_LABEL[period]} · terbaru di atas.</p>
+                <p className="text-xs text-zinc-500">{range ? formatRange(range) : "Semua waktu"} · terbaru di atas.</p>
               </div>
               <span className="shrink-0 whitespace-nowrap rounded-md bg-[#E8EDEA] px-2 py-1 text-xs font-semibold text-[#2C4A3B]">
                 {periodOrders.length} pesanan
