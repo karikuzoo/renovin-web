@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, ChevronDown, Loader2, Lock, MapPin, Upload } from "lucide-react";
 import { formatTanggalWaktu } from "@/lib/orders";
+import { PasswordInput } from "@/components/password-input";
 import {
   changePassword,
   fetchSettings,
@@ -429,8 +430,8 @@ export default function Pengaturan() {
                 </button>
               ) : (
                 <div className="space-y-2">
-                  <input type="password" value={pw} placeholder="Kata sandi baru (min. 8 karakter)" onChange={(e) => setPw(e.target.value)} className={inputClass} />
-                  <input type="password" value={pwConfirm} placeholder="Ulangi kata sandi baru" onChange={(e) => setPwConfirm(e.target.value)} className={inputClass} />
+                  <PasswordInput value={pw} placeholder="Kata sandi baru (min. 8 karakter)" onChange={(e) => setPw(e.target.value)} className={inputClass} />
+                  <PasswordInput value={pwConfirm} placeholder="Ulangi kata sandi baru" onChange={(e) => setPwConfirm(e.target.value)} className={inputClass} />
                   <div className="flex gap-2">
                     <button
                       onClick={handleChangePassword}
