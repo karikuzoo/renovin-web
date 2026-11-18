@@ -29,6 +29,7 @@ function iconFor(type: string) {
     case "project_assigned":
       return { Icon: UserCog, cls: "bg-[#E8EDEA] text-[#2C4A3B]" };
     case "chat_opened":
+    case "chat_message":
     case "chat_reply":
       return { Icon: MessageSquare, cls: "bg-violet-50 text-violet-600" };
     default:
@@ -105,7 +106,8 @@ export function NotificationBell() {
       markNotificationRead(n.id).catch((err) => console.error("Gagal menandai notifikasi:", err));
     }
     setOpen(false);
-    if (n.project_id) router.push(`/workplace/pesanan/${n.project_id}`);
+    if (n.type.startsWith("chat_")) router.push(n.project_id ? `/workplace/chat?project=${n.project_id}` : "/workplace/chat");
+    else if (n.project_id) router.push(`/workplace/pesanan/${n.project_id}`);
   };
 
   const handleMarkAll = async () => {
