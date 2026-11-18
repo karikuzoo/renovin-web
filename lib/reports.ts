@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { getStatusLabel } from '@/lib/orders'
 import { rangeBounds, type DateRange } from '@/lib/date-range'
+import { PAYMENT_STATUS_LABEL, type PaymentStatus } from '@/lib/payments'
 import type { AdminOrder, OrderStatusGroup } from '@/types/admin-orders'
 
 // Data halaman Laporan: admin_orders + tanggal selesai dari project_status_history.
@@ -8,6 +9,11 @@ import type { AdminOrder, OrderStatusGroup } from '@/types/admin-orders'
 
 export interface ReportOrder extends AdminOrder {
   completed_at: string | null
+  // Pencatatan pembayaran (contract-pembayaran.md)
+  payment_status: PaymentStatus
+  paid_amount: number
+  // Total yang dikunci saat konfirmasi final; null kalau skema belum dikunci
+  locked_total: number | null
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -29,16 +35,19 @@ function rangeDates(range: DateRange | null): { from: Date | null; to: Date | nu
 
 export async function fetchReportOrders(): Promise<ReportOrder[]> {
   const supabase = createClient()
-  const [ordersRes, historyRes] = await Promise.all([
+  const [ordersRes, historyRes, paymentsRes] = await Promise.all([
     supabase.from('admin_orders').select('*').order('submitted_at', { ascending: false }),
     supabase
       .from('project_status_history')
       .select('project_id, changed_at')
       .eq('to_status', 'completed')
       .order('changed_at', { ascending: false }),
+    supabase.from('order_payment_summary').select('project_id, payment_status, paid_amount, total_amount, locked_at'),
   ])
   if (ordersRes.error) throw ordersRes.error
   if (historyRes.error) throw historyRes.error
+  if (paymentsRes.error) throw paymentsRes.error
+  const payments = new Map((paymentsRes.data ?? []).map((p) => [p.project_id, p]))
 
   // Riwayat diurutkan terbaru dulu: ambil tanggal selesai terakhir per pesanan
   const completedAt = new Map<string, string>()
@@ -50,6 +59,9 @@ export async function fetchReportOrders(): Promise<ReportOrder[]> {
     ...o,
     order_value: o.order_value === null ? null : Number(o.order_value),
     completed_at: o.status_group === 'done' ? (completedAt.get(o.id) ?? o.updated_at) : null,
+    payment_status: (payments.get(o.id)?.payment_status ?? 'no_plan') as PaymentStatus,
+    paid_amount: Number(payments.get(o.id)?.paid_amount ?? 0),
+    locked_total: payments.get(o.id)?.locked_at ? Number(payments.get(o.id)?.total_amount) : null,
   }))
 }
 
@@ -112,7 +124,7 @@ export function chartBuckets(orders: ReportOrder[], range: DateRange | null): { 
 export const GROUP_ORDER: OrderStatusGroup[] = ['new', 'in_progress', 'done', 'rejected']
 
 export function downloadReportCsv(orders: ReportOrder[], periodLabel: string) {
-  const header = ['No. pesanan', 'Proyek', 'Klien', 'Penanggung jawab', 'Tanggal masuk', 'Status', 'Nilai RAB', 'Tanggal selesai']
+  const header = ['No. pesanan', 'Proyek', 'Klien', 'Penanggung jawab', 'Tanggal masuk', 'Status', 'Nilai RAB', 'Tanggal selesai', 'Status pembayaran', 'Sudah dibayar']
   const rows = orders.map((o) => [
     o.code,
     o.title,
@@ -122,6 +134,8 @@ export function downloadReportCsv(orders: ReportOrder[], periodLabel: string) {
     getStatusLabel(o.status),
     o.order_value === null ? '' : String(o.order_value),
     o.completed_at?.slice(0, 10) ?? '',
+    PAYMENT_STATUS_LABEL[o.payment_status],
+    String(o.paid_amount),
   ])
   const csv = [header, ...rows].map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))

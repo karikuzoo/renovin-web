@@ -21,6 +21,7 @@ import {
   getStatusGroupStyle,
   getStatusLabel,
 } from "@/lib/orders";
+import { PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from "@/lib/payments";
 
 const PAGE_SIZE = 10;
 
@@ -82,6 +83,16 @@ export default function Laporan() {
     }
     return [...map.values()].sort((a, b) => b.value - a.value);
   }, [counted]);
+
+  // Pembayaran hanya dihitung dari pesanan yang skemanya sudah dikunci (nominal pasti)
+  const payment = useMemo(() => {
+    const locked = periodOrders.filter((o) => o.locked_total !== null);
+    const total = locked.reduce((n, o) => n + (o.locked_total ?? 0), 0);
+    const paid = locked.reduce((n, o) => n + o.paid_amount, 0);
+    const byStatus = { paid: 0, partial: 0, unpaid: 0 };
+    for (const o of locked) if (o.payment_status in byStatus) byStatus[o.payment_status as keyof typeof byStatus] += 1;
+    return { count: locked.length, total, paid, percent: total ? Math.round((paid / total) * 1000) / 10 : 0, byStatus };
+  }, [periodOrders]);
 
   const latestDone = useMemo(
     () => (orders ?? []).filter((o) => o.completed_at).sort((a, b) => b.completed_at!.localeCompare(a.completed_at!))[0] ?? null,
@@ -234,7 +245,7 @@ export default function Laporan() {
               <p className="px-6 pb-10 text-center text-sm text-zinc-500">Tidak ada pesanan di periode ini.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
+                <table className="w-full min-w-[880px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
                   <thead className="border-y border-zinc-100 text-[11px] bg-zinc-50/50 text-zinc-500 font-semibold uppercase tracking-wider">
                     <tr>
                       <th className="px-6 py-3 font-medium">Proyek / pesanan</th>
@@ -242,6 +253,7 @@ export default function Laporan() {
                       <th className="px-6 py-3 font-medium">Masuk</th>
                       <th className="px-6 py-3 font-medium">Status</th>
                       <th className="px-6 py-3 font-medium text-right">Nilai RAB</th>
+                      <th className="px-6 py-3 font-medium text-right">Pembayaran</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
@@ -267,6 +279,18 @@ export default function Laporan() {
                           </td>
                           <td className={`px-6 py-4 text-right text-xs font-semibold whitespace-nowrap ${o.status_group === "rejected" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
                             {o.order_value === null ? <span className="font-normal text-zinc-400 no-underline">Belum dihitung</span> : formatRupiah(o.order_value)}
+                          </td>
+                          <td className="px-6 py-4 text-right text-xs whitespace-nowrap">
+                            {o.status_group === "rejected" ? (
+                              <span className="text-zinc-400">—</span>
+                            ) : o.locked_total === null ? (
+                              <span className={PAYMENT_STATUS_STYLE[o.payment_status]}>{PAYMENT_STATUS_LABEL[o.payment_status]}</span>
+                            ) : (
+                              <>
+                                <p className={`font-semibold ${PAYMENT_STATUS_STYLE[o.payment_status]}`}>{PAYMENT_STATUS_LABEL[o.payment_status]}</p>
+                                <p className="text-[10px] text-zinc-400">{formatRupiahCompact(o.paid_amount)} dibayar</p>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );
@@ -378,13 +402,42 @@ export default function Laporan() {
             )}
           </div>
 
-          {/* Pembayaran: menunggu keputusan tim */}
-          <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6">
-            <h3 className="text-lg font-bold text-zinc-900 mb-1">Pembayaran</h3>
-            <p className="text-sm text-zinc-500">
-              Pembayaran diterima, sisa tagihan, dan realisasi akan tampil di sini setelah fitur pembayaran (DP, termin, dan
-              progress) tersedia.
+          {/* Realisasi pembayaran: hanya pesanan yang skemanya sudah dikunci (dikonfirmasi final) */}
+          <div className="rounded-xl border border-zinc-200 bg-white p-6">
+            <h3 className="text-lg font-bold text-zinc-900 mb-1">Realisasi pembayaran</h3>
+            <p className="text-xs text-zinc-500 mb-6">
+              Dari {payment.count} pesanan yang sudah dikonfirmasi final, senilai {formatRupiahCompact(payment.total)}.
             </p>
+            {payment.count === 0 ? (
+              <p className="text-sm text-zinc-500">Belum ada pesanan yang dikonfirmasi final di periode ini.</p>
+            ) : (
+              <>
+                <div className="flex flex-col items-center justify-center mb-6">
+                  <span className="text-5xl font-bold text-[#2C4A3B] tracking-tight mb-2">{payment.percent.toLocaleString("id-ID")}%</span>
+                  <span className="text-xs text-zinc-500">sudah diterima</span>
+                </div>
+                <div className="mb-5 flex h-3 w-full rounded-full overflow-hidden bg-[#D4DFD7]">
+                  <div className="h-full bg-[#2C4A3B]" style={{ width: `${payment.percent}%` }} />
+                </div>
+                <div className="space-y-3 pt-4 border-t border-zinc-100 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2 text-zinc-600">
+                      <span className="h-2 w-2 rounded-sm bg-[#2C4A3B]" /> Diterima
+                    </span>
+                    <span className="font-bold text-zinc-900">{formatRupiah(payment.paid)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2 text-zinc-600">
+                      <span className="h-2 w-2 rounded-sm bg-[#D4DFD7]" /> Sisa tagihan
+                    </span>
+                    <span className="font-bold text-zinc-900">{formatRupiah(payment.total - payment.paid)}</span>
+                  </div>
+                  <p className="pt-1 text-[11px] text-zinc-400">
+                    {payment.byStatus.paid} lunas · {payment.byStatus.partial} sebagian · {payment.byStatus.unpaid} belum bayar
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
