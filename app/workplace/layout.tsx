@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchDashboardSummary } from "@/lib/orders";
+import { fetchUnreadConversationCount } from "@/lib/chat";
 import { NotificationBell } from "@/components/notification-bell";
 import { GlobalSearch } from "@/components/global-search";
 import { useState, useEffect } from "react";
@@ -16,6 +17,7 @@ import {
   Users,
   MailWarning,
   Briefcase,
+  MessageSquare,
   Settings,
   HelpCircle,
   LogOut,
@@ -118,6 +120,35 @@ export default function RuangKerjaLayout({
   }, [pathname]);
   const badgeText = (n: number | undefined) => (n ? String(n) : undefined);
 
+  // Badge Chat: percakapan dengan pesan klien yang belum dibaca. Dihitung ulang saat
+  // pindah halaman, saat halaman Chat menandai dibaca, dan saat ada pesan masuk (realtime).
+  const [unreadChats, setUnreadChats] = useState(0);
+  useEffect(() => {
+    let ignore = false;
+    const load = () =>
+      fetchUnreadConversationCount().then((n) => {
+        if (!ignore) setUnreadChats(n);
+      });
+    load();
+    window.addEventListener("chat-unread-changed", load);
+    // Realtime baru berlangganan setelah sesi login termuat; kalau tidak, koneksi
+    // memakai kunci anonim dan RLS tidak mengirim event pesan (sama seperti lonceng notifikasi).
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    supabase.auth.getUser().then(() => {
+      if (ignore) return;
+      channel = supabase
+        .channel("sidebar-chat")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => load())
+        .subscribe();
+    });
+    return () => {
+      ignore = true;
+      window.removeEventListener("chat-unread-changed", load);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [pathname]);
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -141,6 +172,7 @@ export default function RuangKerjaLayout({
       badge: badgeText(badges?.allOrders),
     },
     { name: "Katalog Bahan", href: "/workplace/katalog", icon: Package },
+    { name: "Chat", href: "/workplace/chat", icon: MessageSquare, badge: badgeText(unreadChats) },
     { name: "Klien", href: "/workplace/klien", icon: Users },
     { name: "Tim studio", href: "/workplace/tim", icon: Briefcase },
     {
