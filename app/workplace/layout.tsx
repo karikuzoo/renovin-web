@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchDashboardSummary } from "@/lib/orders";
 import { NotificationBell } from "@/components/notification-bell";
+import { GlobalSearch } from "@/components/global-search";
 import { useState, useEffect } from "react";
 
 import {
@@ -19,7 +20,6 @@ import {
   HelpCircle,
   LogOut,
   ChevronDown,
-  Search,
   ChevronRight,
   ArrowRight,
   Menu,
@@ -318,17 +318,7 @@ export default function RuangKerjaLayout({
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Cari proyek, pesanan, atau klien..."
-                className="h-9 w-48 lg:w-64 rounded-md border border-[#E5E0D8] bg-white pl-9 pr-4 text-sm outline-none focus:border-[#2C4A3B] focus:ring-1 focus:ring-[#2C4A3B] placeholder:text-zinc-400"
-              />
-            </div>
-            <button className="md:hidden text-zinc-500 hover:text-zinc-700">
-              <Search className="h-5 w-5" />
-            </button>
+            <GlobalSearch />
             <NotificationBell />
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2C4A3B] text-xs font-medium text-white">
               {user.initials}
