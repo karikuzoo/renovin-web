@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { DateRangePicker } from "@/components/date-range-picker";
+import {
+  PAYMENT_STATUS_LABEL,
+  PAYMENT_STATUS_STYLE,
+  fetchPaymentSummaries,
+  type PaymentStatus,
+  type PaymentSummary,
+} from "@/lib/payments";
 import { PRESETS, type DateRange } from "@/lib/date-range";
 import Link from "next/link";
 import {
@@ -53,6 +60,7 @@ export default function Pesanan() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [payments, setPayments] = useState<Map<string, PaymentSummary>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +97,14 @@ export default function Pesanan() {
 
         if (!ignore) {
           setOrders(res.orders);
+          // Status pembayaran per baris (contract-pembayaran.md); gagal dimuat -> kolom tampil "—"
+          fetchPaymentSummaries(res.orders.map((o) => o.id))
+            .then((m) => {
+              if (!ignore) setPayments(m);
+            })
+            .catch(() => {
+              if (!ignore) setPayments(new Map());
+            });
           setTotal(res.total);
           setCounts(res.counts);
           setTotalValue(res.totalValue);
@@ -450,7 +466,7 @@ export default function Pesanan() {
 
         {/* Orders Table */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
+          <table className="w-full min-w-[1080px] [&_th]:whitespace-nowrap text-left text-sm text-zinc-600">
             <thead className="border-y border-zinc-100 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider bg-[#FAF9F7]/50">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -466,7 +482,7 @@ export default function Pesanan() {
                 </th>
                 <th className="px-4 py-3 font-medium">Nilai pesanan</th>
                 <th className="px-4 py-3 font-medium">Status proyek</th>
-                {/* Kolom Pembayaran disembunyikan sampai aturan pembayaran (DP/termin) diputuskan tim */}
+                <th className="px-4 py-3 font-medium">Pembayaran</th>
                 <th className="px-4 py-3 text-right">Tindakan</th>
               </tr>
             </thead>
@@ -498,6 +514,9 @@ export default function Pesanan() {
                     <td className="px-4 py-4">
                       <div className="h-5 w-24 bg-zinc-100 rounded-full"></div>
                     </td>
+                    <td className="px-4 py-4">
+                      <div className="h-4 w-16 bg-zinc-100 rounded"></div>
+                    </td>
                     <td className="px-4 py-4 text-right">
                       <div className="h-4 w-6 bg-zinc-100 rounded ml-auto"></div>
                     </td>
@@ -506,7 +525,7 @@ export default function Pesanan() {
               ) : orders.length === 0 ? (
                 // Empty state
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center">
+                  <td colSpan={9} className="px-4 py-12 text-center">
                     <div className="max-w-sm mx-auto flex flex-col items-center justify-center">
                       <div className="h-12 w-12 rounded-full bg-[#E8EDEA] flex items-center justify-center text-[#2C4A3B] mb-3">
                         <Inbox className="h-6 w-6" />
@@ -592,6 +611,22 @@ export default function Pesanan() {
                           <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`}></span>
                           {getStatusLabel(order.status)}
                         </span>
+                      </td>
+
+                      {/* Pembayaran: dari order_payment_summary (pencatatan, bukan transaksi) */}
+                      <td className="px-4 py-3.5 text-xs font-medium whitespace-nowrap">
+                        {(() => {
+                          const pay = payments.get(order.id);
+                          if (!pay || order.status_group === "new" || order.status_group === "rejected")
+                            return <span className="text-zinc-400">—</span>;
+                          const st = (pay.payment_status ?? "no_plan") as PaymentStatus;
+                          return (
+                            <span className={PAYMENT_STATUS_STYLE[st]}>
+                              {PAYMENT_STATUS_LABEL[st]}
+                              {st === "partial" && ` · ${pay.paid_count}/${pay.installment_count}`}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Actions */}

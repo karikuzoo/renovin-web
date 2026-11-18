@@ -31,6 +31,7 @@ import { ApprovalPanel } from "@/components/approval-panel";
 import { AssignAdminControl } from "@/components/assign-admin-control";
 import { useConfirm } from "@/components/confirm-dialog";
 import { ReportPanel } from "@/components/report-panel";
+import { PaymentPanel } from "@/components/payment-panel";
 import {
   calculateRab,
   canAssign,
@@ -871,6 +872,17 @@ function OrderDetailView({ orderId }: { orderId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Skema pembayaran: wajib sebelum konfirmasi final (contract-pembayaran.md) */}
+      <PaymentPanel
+        key={reloadKey}
+        projectId={order.id}
+        status={order.status}
+        isStaff={detail.myRole === "admin" || detail.myRole === "super_admin"}
+        rabTotal={detail.rab ? Number(detail.rab.grand_total_customer) : null}
+        onDone={(message) => setToastMessage({ type: "success", text: message })}
+        onError={showError}
+      />
 
       <ApprovalPanel
         projectId={order.id}
