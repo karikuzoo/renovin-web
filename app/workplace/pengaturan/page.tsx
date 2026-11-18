@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, ChevronDown, Loader2, Lock, MapPin, Upload } from "lucide-react";
 import { formatTanggalWaktu } from "@/lib/orders";
 import { PasswordInput } from "@/components/password-input";
+import { ServiceRatesSection } from "@/components/service-rates-section";
 import {
   changePassword,
   fetchSettings,
@@ -274,6 +275,9 @@ export default function Pengaturan() {
           <a href="#admin-keamanan" className="pb-3 text-sm font-medium text-zinc-500 hover:text-zinc-700">
             Admin & keamanan
           </a>
+          <a href="#harga-pajak" className="whitespace-nowrap pb-3 text-sm font-medium text-zinc-500 hover:text-zinc-700">
+            Harga & pajak
+          </a>
           <a href="#notifikasi" className="pb-3 text-sm font-medium text-zinc-500 hover:text-zinc-700">
             Notifikasi
           </a>
@@ -359,24 +363,6 @@ export default function Pengaturan() {
               <SelectField label="Bahasa antarmuka" value={locale.language} options={LANGUAGES} onChange={(v) => setLocale({ ...locale, language: v })} />
             </div>
 
-            <div className="pt-6 border-t border-zinc-100 grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-700">Pajak RAB (%)</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={tax}
-                  disabled={!isSuperAdmin}
-                  onChange={(e) => setTax(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <p className="text-[11px] text-zinc-500 pb-2.5">
-                {isSuperAdmin
-                  ? "Dipakai untuk RAB yang dihitung setelah perubahan. RAB yang sudah ada tidak berubah sampai dihitung ulang."
-                  : "Hanya super admin yang bisa mengubah pajak."}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -455,6 +441,35 @@ export default function Pengaturan() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Harga & pajak: pajak + tarif jasa, keduanya hanya super admin (Q13, Q17) */}
+      <div id="harga-pajak" className="rounded-xl border border-zinc-200 bg-white p-6 scroll-mt-24 space-y-8">
+        <div>
+          <h2 className="text-lg font-bold text-zinc-900 mb-1">Harga & pajak</h2>
+          <p className="text-xs text-zinc-500">Pajak dan tarif jasa yang dipakai saat RAB dihitung.</p>
+        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-700">Pajak RAB (%)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={tax}
+                  disabled={!isSuperAdmin}
+                  onChange={(e) => setTax(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <p className="text-[11px] text-zinc-500 pb-2.5">
+                {isSuperAdmin
+                  ? "Dipakai untuk RAB yang dihitung setelah perubahan. RAB yang sudah ada tidak berubah sampai dihitung ulang."
+                  : "Hanya super admin yang bisa mengubah pajak."}
+              </p>
+            </div>
+        <div className="border-t border-zinc-100 pt-6">
+          <ServiceRatesSection isSuperAdmin={isSuperAdmin} onMessage={(type, text) => setToast({ type, text })} />
         </div>
       </div>
 
