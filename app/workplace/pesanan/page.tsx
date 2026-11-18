@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
 import { DateRangePicker } from "@/components/date-range-picker";
 import {
   PAYMENT_STATUS_LABEL,
@@ -40,7 +40,7 @@ import { CreateOrderModal } from "@/components/create-order-modal";
 
 const PAGE_SIZE = 10;
 
-export default function Pesanan() {
+function Pesanan({ initialSearch }: { initialSearch: string }) {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<Record<OrderStatusGroup | "all", number>>({
@@ -55,9 +55,9 @@ export default function Pesanan() {
 
   // Filters & Pagination
   const [activeTab, setActiveTab] = useState<OrderStatusGroup | "all">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   // Kata kunci yang benar-benar dikirim ke server, ±300 ms setelah berhenti mengetik
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [payments, setPayments] = useState<Map<string, PaymentSummary>>(new Map());
@@ -794,4 +794,11 @@ export default function Pesanan() {
       />
     </div>
   );
+}
+
+// ?q= dari pencarian global mengisi kolom cari; key memaksa isi ulang saat q berganti
+export default function PesananPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const params = use(searchParams);
+  const q = typeof params.q === "string" ? params.q : "";
+  return <Pesanan key={q} initialSearch={q} />;
 }

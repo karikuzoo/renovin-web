@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import {
   Download,
   Search,
@@ -31,14 +31,14 @@ const PAGE_SIZE = 10;
 
 type Tab = "all" | "active" | "new";
 
-export default function Klien() {
+function Klien({ initialSearch }: { initialSearch: string }) {
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [tab, setTab] = useState<Tab>("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -396,4 +396,11 @@ export default function Klien() {
       </div>
     </div>
   );
+}
+
+// ?q= dari pencarian global mengisi kolom cari; key memaksa isi ulang saat q berganti
+export default function KlienPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const params = use(searchParams);
+  const q = typeof params.q === "string" ? params.q : "";
+  return <Klien key={q} initialSearch={q} />;
 }

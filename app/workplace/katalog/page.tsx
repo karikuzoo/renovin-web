@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, use } from "react";
 import Image from "next/image";
 import {
   Plus,
@@ -174,15 +174,17 @@ function StatusMenu({ item, onChange }: { item: CatalogProduct; onChange: (statu
 
 type ModalState = { mode: "create" | "edit" | "duplicate"; productId: string | null; initial: ProductForm } | null;
 
-export default function KatalogBahan() {
+function KatalogBahan({ initialSearch, initialStatus }: { initialSearch: string; initialStatus: string }) {
   const [products, setProducts] = useState<CatalogProduct[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<CatalogStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<CatalogStatus | "">(
+    ["draft", "published", "archived"].includes(initialStatus) ? (initialStatus as CatalogStatus) : "",
+  );
   const [availabilityFilter, setAvailabilityFilter] = useState<Availability | "">("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
@@ -602,4 +604,12 @@ export default function KatalogBahan() {
       </div>
     </div>
   );
+}
+
+// ?q= dari pencarian global mengisi kolom cari; key memaksa isi ulang saat q berganti
+export default function KatalogBahanPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const params = use(searchParams);
+  const q = typeof params.q === "string" ? params.q : "";
+  const status = typeof params.status === "string" ? params.status : "";
+  return <KatalogBahan key={q + status} initialSearch={q} initialStatus={status} />;
 }
